@@ -165,6 +165,20 @@ func (p *Parser) stmt() *Node {
 		return node
 	}
 
+	if p.consume("{") {
+		head := Node{}
+		cur := &head
+
+		for !p.consume("}") {
+			cur.next = p.stmt()
+			cur = cur.next
+		}
+
+		node := NewNode(ND_BLOCK)
+		node.body = head.next
+		return node
+	}
+
 	node := p.readExprStmt()
 	p.expect(";")
 	return node
