@@ -22,6 +22,11 @@ func TestCompile(t *testing.T) {
 		{1, "return 1>0;"},
 		{3, "foo=3; return foo;"},
 		{8, "foo123=3; bar=5; return foo123+bar;"},
+
+		{3, "if (0) return 2; return 3;"},
+		{3, "if (1-1) return 2; return 3;"},
+		{2, "if (1) return2; return3;"},
+		{2, "if (2-1) return2; return3;"},
 	}
 
 	asmFile := "tmp.s"

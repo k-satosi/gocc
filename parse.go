@@ -19,16 +19,22 @@ const (
 	ND_LE
 	ND_ASSIGN
 	ND_RETURN
+	ND_IF
 	ND_EXPR_STMT
 	ND_VAR
 	ND_NUM
 )
 
 type Node struct {
-	kind     NodeKind
-	next     *Node
-	lhs      *Node
-	rhs      *Node
+	kind NodeKind
+	next *Node
+	lhs  *Node
+	rhs  *Node
+
+	cond *Node
+	then *Node
+	els  *Node
+
 	variable *Variable
 	val      int
 }
@@ -101,6 +107,10 @@ func (p *Parser) Program() *Function {
 	}
 }
 
+func (p *Parser) readExprStmt() *Node {
+	return NewUnary(ND_EXPR_STMT, p.expr())
+}
+
 func (p *Parser) stmt() *Node {
 	if p.consume("return") {
 		node := NewUnary(ND_RETURN, p.expr())
@@ -108,7 +118,19 @@ func (p *Parser) stmt() *Node {
 		return node
 	}
 
-	node := NewUnary(ND_EXPR_STMT, p.expr())
+	if p.consume("if") {
+		node := NewNode(ND_IF)
+		p.expect("(")
+		node.cond = p.expr()
+		p.expect(")")
+		node.then = p.stmt()
+		if p.consume("else") {
+			node.els = p.stmt()
+		}
+		return node
+	}
+
+	node := p.readExprStmt()
 	p.expect(";")
 	return node
 }

@@ -102,6 +102,24 @@ func (t *Token) AtEOF() bool {
 	return t.kind == TK_EOF
 }
 
+func startsWithReserved(s string) (string, bool) {
+	keywords := []string{"return", "if", "else"}
+	for _, v := range keywords {
+		if strings.HasPrefix(s, v) {
+			return v, true
+		}
+	}
+
+	ops := []string{"==", "!=", "<=", ">="}
+	for _, v := range ops {
+		if strings.HasPrefix(s, v) {
+			return v, true
+		}
+	}
+
+	return "", false
+}
+
 func Tokenize(input string) *Token {
 	head := &Token{}
 	cur := head
@@ -111,9 +129,9 @@ func Tokenize(input string) *Token {
 			i++
 			continue
 		}
-		if strings.HasPrefix(input[i:], "return") && !isAlNum(rune(input[i+6])) {
-			cur = NewToken(TK_RESERVED, cur, input[i:i+6], 6)
-			i += 6
+		if keyword, ok := startsWithReserved(input[i:]); ok {
+			cur = NewToken(TK_RESERVED, cur, keyword, len(keyword))
+			i += len(keyword)
 			continue
 		}
 		if isLetter(rune(input[i])) {
@@ -122,14 +140,6 @@ func Tokenize(input string) *Token {
 			for ; i < len(input) && isAlNum(rune(input[i])); i++ {
 			}
 			cur = NewToken(TK_IDENT, cur, input[pos:i], i-pos)
-			continue
-		}
-		if strings.HasPrefix(input[i:], "==") ||
-			strings.HasPrefix(input[i:], "!=") ||
-			strings.HasPrefix(input[i:], "<=") ||
-			strings.HasPrefix(input[i:], ">=") {
-			cur = NewToken(TK_RESERVED, cur, input[i:i+2], 2)
-			i += 2
 			continue
 		}
 		if isPunct(rune(input[i])) {
