@@ -22,6 +22,7 @@ const (
 	ND_IF
 	ND_WHILE
 	ND_FOR
+	ND_BLOCK
 	ND_EXPR_STMT
 	ND_VAR
 	ND_NUM
@@ -38,6 +39,8 @@ type Node struct {
 	els  *Node
 	init *Node
 	inc  *Node
+
+	body *Node
 
 	variable *Variable
 	val      int
