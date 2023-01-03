@@ -69,6 +69,18 @@ func gen(node *Node) {
 			fmt.Printf(".L.end.%d:\n", seq)
 		}
 		return
+	case ND_WHILE:
+		labelseq++
+		seq := labelseq
+		fmt.Printf(".L.begin.%d:\n", seq)
+		gen(node.cond)
+		fmt.Printf("  pop rax\n")
+		fmt.Printf("  cmp rax, 0\n")
+		fmt.Printf("  je .L.end.%d\n", seq)
+		gen(node.then)
+		fmt.Printf("  jmp .L.begin.%d\n", seq)
+		fmt.Printf(".L.end.%d:\n", seq)
+		return
 	case ND_RETURN:
 		gen(node.lhs)
 		fmt.Printf("  pop rax\n")

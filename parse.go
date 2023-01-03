@@ -20,6 +20,7 @@ const (
 	ND_ASSIGN
 	ND_RETURN
 	ND_IF
+	ND_WHILE
 	ND_EXPR_STMT
 	ND_VAR
 	ND_NUM
@@ -127,6 +128,15 @@ func (p *Parser) stmt() *Node {
 		if p.consume("else") {
 			node.els = p.stmt()
 		}
+		return node
+	}
+
+	if p.consume("while") {
+		node := NewNode(ND_WHILE)
+		p.expect("(")
+		node.cond = p.expr()
+		p.expect(")")
+		node.then = p.stmt()
 		return node
 	}
 
