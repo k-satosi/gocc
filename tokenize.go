@@ -29,8 +29,9 @@ type Variable struct {
 	offset int
 }
 
-func errorAt(loc string, format ...string) {
-	fmt.Print(format)
+func errorAt(loc string, format string, a ...string) {
+	fmt.Println(loc)
+	fmt.Printf(format, a)
 	fmt.Println()
 	os.Exit(1)
 }
@@ -62,7 +63,7 @@ func isAlNum(r rune) bool {
 }
 
 func isPunct(r rune) bool {
-	return strings.ContainsRune("+-*/=()<>!;:,.", r)
+	return strings.ContainsRune("+-*/=(){}<>!;:,.", r)
 }
 
 func (p *Parser) consume(op string) bool {
@@ -96,6 +97,15 @@ func (p *Parser) expectNumber() int {
 	val := p.token.val
 	p.token = p.token.next
 	return val
+}
+
+func (p *Parser) expectIdent() string {
+	if p.token.kind != TK_IDENT {
+		errorAt(p.token.str, "expected an identifier")
+	}
+	s := p.token.str
+	p.token = p.token.next
+	return s
 }
 
 func (t *Token) AtEOF() bool {

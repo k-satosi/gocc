@@ -11,16 +11,22 @@ func main() {
 		return
 	}
 	input := os.Args[1]
+	compile(input)
+}
+
+func compile(input string) {
 	token := Tokenize(input)
 	parser := NewParser(token)
 	prog := parser.Program()
 
-	offset := 0
-	for v := prog.locals; v != nil; v = v.next {
-		offset += 8
-		v.offset = offset
+	for fn := prog; fn != nil; fn = fn.next {
+		offset := 0
+		for vl := fn.locals; vl != nil; vl = vl.next {
+			offset += 8
+			vl.variable.offset = offset
+		}
+		prog.stackSize = offset
 	}
-	prog.stackSize = offset
 
 	Codegen(prog)
 }

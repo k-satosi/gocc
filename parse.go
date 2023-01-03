@@ -1,8 +1,12 @@
 package main
 
 type Function struct {
+	next   *Function
+	name   string
+	params *VarList
+
 	node      *Node
-	locals    *Variable
+	locals    *VarList
 	stackSize int
 }
 
@@ -23,6 +27,7 @@ const (
 	ND_WHILE
 	ND_FOR
 	ND_BLOCK
+	ND_FUNCALL
 	ND_EXPR_STMT
 	ND_VAR
 	ND_NUM
@@ -42,8 +47,16 @@ type Node struct {
 
 	body *Node
 
+	funcname string
+	args     *Node
+
 	variable *Variable
 	val      int
+}
+
+type VarList struct {
+	next     *VarList
+	variable *Variable
 }
 
 func NewNode(kind NodeKind) *Node {
@@ -79,18 +92,22 @@ func NewVarNode(v *Variable) *Node {
 	return node
 }
 
-func (p *Parser) newLvar(name string) *Variable {
+func (p *Parser) NewLVar(name string) *Variable {
 	v := &Variable{
-		next: p.locals,
 		name: name,
 	}
-	p.locals = v
+
+	vl := &VarList{
+		variable: v,
+		next:     p.locals,
+	}
+	p.locals = vl
 	return v
 }
 
 type Parser struct {
 	token  *Token
-	locals *Variable
+	locals *VarList
 }
 
 func NewParser(token *Token) *Parser {
@@ -100,18 +117,55 @@ func NewParser(token *Token) *Parser {
 }
 
 func (p *Parser) Program() *Function {
-	head := Node{}
+	head := Function{}
 	cur := &head
 
 	for !p.token.AtEOF() {
+		cur.next = p.function()
+		cur = cur.next
+	}
+	return head.next
+}
+
+func (p *Parser) readFuncParams() *VarList {
+	if p.consume(")") {
+		return nil
+	}
+
+	head := &VarList{
+		variable: p.NewLVar(p.expectIdent()),
+	}
+	cur := head
+
+	for !p.consume(")") {
+		p.expect(",")
+		cur.next = &VarList{}
+		cur.next.variable = p.NewLVar(p.expectIdent())
+		cur = cur.next
+	}
+
+	return head
+}
+
+func (p *Parser) function() *Function {
+	p.locals = nil
+
+	fn := &Function{}
+	fn.name = p.expectIdent()
+	p.expect("(")
+	fn.params = p.readFuncParams()
+	p.expect("{")
+
+	head := &Node{}
+	cur := head
+	for !p.consume("}") {
 		cur.next = p.stmt()
 		cur = cur.next
 	}
 
-	return &Function{
-		node:   head.next,
-		locals: p.locals,
-	}
+	fn.node = head.next
+	fn.locals = p.locals
+	return fn
 }
 
 func (p *Parser) readExprStmt() *Node {
@@ -267,6 +321,21 @@ func (p *Parser) unary() *Node {
 	}
 }
 
+func (p *Parser) funcArgs() *Node {
+	if p.consume(")") {
+		return nil
+	}
+
+	head := p.assign()
+	cur := head
+	for p.consume(",") {
+		cur.next = p.assign()
+		cur = cur.next
+	}
+	p.expect(")")
+	return head
+}
+
 func (p *Parser) primary() *Node {
 	if p.consume("(") {
 		node := p.expr()
@@ -275,9 +344,15 @@ func (p *Parser) primary() *Node {
 	}
 
 	if token := p.consumeIdent(); token != nil {
+		if p.consume("(") {
+			node := NewNode(ND_FUNCALL)
+			node.funcname = token.str
+			node.args = p.funcArgs()
+			return node
+		}
 		v := p.findVariable(token)
 		if v == nil {
-			v = p.newLvar(token.str)
+			v = p.NewLVar(token.str)
 		}
 		return NewVarNode(v)
 	}
@@ -286,7 +361,8 @@ func (p *Parser) primary() *Node {
 }
 
 func (p *Parser) findVariable(token *Token) *Variable {
-	for v := p.locals; v != nil; v = v.next {
+	for vl := p.locals; vl != nil; vl = vl.next {
+		v := vl.variable
 		if token.str == v.name {
 			return v
 		}

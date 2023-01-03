@@ -5,6 +5,15 @@ import (
 )
 
 var labelseq int
+var argreg = []string{
+	"rdi",
+	"rsi",
+	"rdx",
+	"rcx",
+	"r8",
+	"r9",
+}
+var funcname string
 
 func genAddr(node *Node) {
 	if node.kind == ND_VAR {
@@ -106,10 +115,36 @@ func gen(node *Node) {
 			gen(n)
 		}
 		return
+	case ND_FUNCALL:
+		nargs := 0
+		for arg := node.args; arg != nil; arg = arg.next {
+			gen(arg)
+			nargs++
+		}
+		for i := nargs - 1; i >= 0; i-- {
+			fmt.Printf("  pop %s\n", argreg[i])
+		}
+
+		labelseq++
+		seq := labelseq
+		fmt.Printf("  mov rax, rsp\n")
+		fmt.Printf("  and rax, 15\n")
+		fmt.Printf("  jnz .L.call.%d\n", seq)
+		fmt.Printf("  mov rax, 0\n")
+		fmt.Printf("  call %s\n", node.funcname)
+		fmt.Printf("  jmp .L.end.%d\n", seq)
+		fmt.Printf(".L.call.%d:\n", seq)
+		fmt.Printf("  sub rsp, 8\n")
+		fmt.Printf("  mov rax, 0\n")
+		fmt.Printf("  call %s\n", node.funcname)
+		fmt.Printf("  add rsp, 8\n")
+		fmt.Printf(".L.end.%d:\n", seq)
+		fmt.Printf("  push rax\n")
+		return
 	case ND_RETURN:
 		gen(node.lhs)
 		fmt.Printf("  pop rax\n")
-		fmt.Printf("  jmp .L.return\n")
+		fmt.Printf("  jmp .L.return.%s\n", funcname)
 		return
 	}
 
@@ -152,19 +187,30 @@ func gen(node *Node) {
 
 func Codegen(prog *Function) {
 	fmt.Printf(".intel_syntax noprefix\n")
-	fmt.Printf(".global main\n")
-	fmt.Printf("main:\n")
 
-	fmt.Printf("  push rbp\n")
-	fmt.Printf("  mov rbp, rsp\n")
-	fmt.Printf("  sub rsp, %d\n", prog.stackSize)
+	for fn := prog; fn != nil; fn = fn.next {
+		fmt.Printf(".global %s\n", fn.name)
+		fmt.Printf("%s:\n", fn.name)
+		funcname = fn.name
 
-	for n := prog.node; n != nil; n = n.next {
-		gen(n)
+		fmt.Printf("  push rbp\n")
+		fmt.Printf("  mov rbp, rsp\n")
+		fmt.Printf("  sub rsp, %d\n", prog.stackSize)
+
+		i := 0
+		for vl := fn.params; vl != nil; vl = vl.next {
+			v := vl.variable
+			fmt.Printf("  mov [rbp-%d], %s\n", v.offset, argreg[i])
+			i++
+		}
+
+		for n := fn.node; n != nil; n = n.next {
+			gen(n)
+		}
+
+		fmt.Printf(".L.return.%s:\n", funcname)
+		fmt.Printf("  mov rsp, rbp\n")
+		fmt.Printf("  pop rbp\n")
+		fmt.Printf("  ret\n")
 	}
-
-	fmt.Printf(".L.return:\n")
-	fmt.Printf("  mov rsp, rbp\n")
-	fmt.Printf("  pop rbp\n")
-	fmt.Printf("  ret\n")
 }
