@@ -103,7 +103,7 @@ func (t *Token) AtEOF() bool {
 }
 
 func startsWithReserved(s string) (string, bool) {
-	keywords := []string{"return", "if", "else", "while"}
+	keywords := []string{"return", "if", "else", "while", "for"}
 	for _, v := range keywords {
 		if strings.HasPrefix(s, v) {
 			return v, true

@@ -21,6 +21,7 @@ const (
 	ND_RETURN
 	ND_IF
 	ND_WHILE
+	ND_FOR
 	ND_EXPR_STMT
 	ND_VAR
 	ND_NUM
@@ -35,6 +36,8 @@ type Node struct {
 	cond *Node
 	then *Node
 	els  *Node
+	init *Node
+	inc  *Node
 
 	variable *Variable
 	val      int
@@ -136,6 +139,25 @@ func (p *Parser) stmt() *Node {
 		p.expect("(")
 		node.cond = p.expr()
 		p.expect(")")
+		node.then = p.stmt()
+		return node
+	}
+
+	if p.consume("for") {
+		node := NewNode(ND_FOR)
+		p.expect("(")
+		if !p.consume(";") {
+			node.init = p.readExprStmt()
+			p.expect(";")
+		}
+		if !p.consume(";") {
+			node.cond = p.expr()
+			p.expect(";")
+		}
+		if !p.consume(")") {
+			node.inc = p.readExprStmt()
+			p.expect(")")
+		}
 		node.then = p.stmt()
 		return node
 	}
