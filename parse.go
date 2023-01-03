@@ -1,5 +1,11 @@
 package main
 
+type Function struct {
+	node      *Node
+	locals    *Variable
+	stackSize int
+}
+
 type NodeKind int
 
 const (
@@ -11,16 +17,20 @@ const (
 	ND_NE
 	ND_LT
 	ND_LE
+	ND_ASSIGN
 	ND_RETURN
+	ND_EXPR_STMT
+	ND_VAR
 	ND_NUM
 )
 
 type Node struct {
-	kind NodeKind
-	next *Node
-	lhs  *Node
-	rhs  *Node
-	val  int
+	kind     NodeKind
+	next     *Node
+	lhs      *Node
+	rhs      *Node
+	variable *Variable
+	val      int
 }
 
 func NewNode(kind NodeKind) *Node {
@@ -50,8 +60,24 @@ func NewNum(val int) *Node {
 	return node
 }
 
+func NewVarNode(v *Variable) *Node {
+	node := NewNode(ND_VAR)
+	node.variable = v
+	return node
+}
+
+func (p *Parser) newLvar(name string) *Variable {
+	v := &Variable{
+		next: p.locals,
+		name: name,
+	}
+	p.locals = v
+	return v
+}
+
 type Parser struct {
-	token *Token
+	token  *Token
+	locals *Variable
 }
 
 func NewParser(token *Token) *Parser {
@@ -60,7 +86,7 @@ func NewParser(token *Token) *Parser {
 	}
 }
 
-func (p *Parser) Program() *Node {
+func (p *Parser) Program() *Function {
 	head := Node{}
 	cur := &head
 
@@ -69,7 +95,10 @@ func (p *Parser) Program() *Node {
 		cur = cur.next
 	}
 
-	return head.next
+	return &Function{
+		node:   head.next,
+		locals: p.locals,
+	}
 }
 
 func (p *Parser) stmt() *Node {
@@ -79,13 +108,22 @@ func (p *Parser) stmt() *Node {
 		return node
 	}
 
-	node := p.expr()
+	node := NewUnary(ND_EXPR_STMT, p.expr())
 	p.expect(";")
 	return node
 }
 
 func (p *Parser) expr() *Node {
-	return p.equality()
+	return p.assign()
+}
+
+func (p *Parser) assign() *Node {
+	node := p.equality()
+	if p.consume("=") {
+		node = NewBinary(ND_ASSIGN, node, p.assign())
+	}
+
+	return node
 }
 
 func (p *Parser) equality() *Node {
@@ -165,5 +203,22 @@ func (p *Parser) primary() *Node {
 		return node
 	}
 
+	if token := p.consumeIdent(); token != nil {
+		v := p.findVariable(token)
+		if v == nil {
+			v = p.newLvar(token.str)
+		}
+		return NewVarNode(v)
+	}
+
 	return NewNum(p.expectNumber())
+}
+
+func (p *Parser) findVariable(token *Token) *Variable {
+	for v := p.locals; v != nil; v = v.next {
+		if token.str == v.name {
+			return v
+		}
+	}
+	return nil
 }

@@ -4,15 +4,51 @@ import (
 	"fmt"
 )
 
+func genAddr(node *Node) {
+	if node.kind == ND_VAR {
+		fmt.Printf("  lea rax, [rbp-%d]\n", node.variable.offset)
+		fmt.Printf("  push rax\n")
+		return
+	}
+
+	fmt.Printf("not an lvalue")
+}
+
+func load() {
+	fmt.Printf("  pop rax\n")
+	fmt.Printf("  mov rax, [rax]\n")
+	fmt.Printf("  push rax\n")
+}
+
+func store() {
+	fmt.Printf("  pop rdi\n")
+	fmt.Printf("  pop rax\n")
+	fmt.Printf("  mov [rax], rdi\n")
+	fmt.Printf("  push rdi\n")
+}
+
 func gen(node *Node) {
 	switch node.kind {
 	case ND_NUM:
 		fmt.Printf("  push %d\n", node.val)
 		return
+	case ND_EXPR_STMT:
+		gen(node.lhs)
+		fmt.Printf("  add rsp, 8\n")
+		return
+	case ND_VAR:
+		genAddr(node)
+		load()
+		return
+	case ND_ASSIGN:
+		genAddr(node.lhs)
+		gen(node.rhs)
+		store()
+		return
 	case ND_RETURN:
 		gen(node.lhs)
 		fmt.Printf("  pop rax\n")
-		fmt.Printf("  ret\n")
+		fmt.Printf("  jmp .L.return\n")
 		return
 	}
 
@@ -53,15 +89,21 @@ func gen(node *Node) {
 	fmt.Printf("  push rax\n")
 }
 
-func Codegen(node *Node) {
+func Codegen(prog *Function) {
 	fmt.Printf(".intel_syntax noprefix\n")
 	fmt.Printf(".global main\n")
 	fmt.Printf("main:\n")
 
-	for n := node; n != nil; n = n.next {
+	fmt.Printf("  push rbp\n")
+	fmt.Printf("  mov rbp, rsp\n")
+	fmt.Printf("  sub rsp, %d\n", prog.stackSize)
+
+	for n := prog.node; n != nil; n = n.next {
 		gen(n)
-		fmt.Printf("  pop rax\n")
 	}
 
+	fmt.Printf(".L.return:\n")
+	fmt.Printf("  mov rsp, rbp\n")
+	fmt.Printf("  pop rbp\n")
 	fmt.Printf("  ret\n")
 }

@@ -13,7 +13,14 @@ func main() {
 	input := os.Args[1]
 	token := Tokenize(input)
 	parser := NewParser(token)
-	node := parser.Program()
+	prog := parser.Program()
 
-	Codegen(node)
+	offset := 0
+	for v := prog.locals; v != nil; v = v.next {
+		offset += 8
+		v.offset = offset
+	}
+	prog.stackSize = offset
+
+	Codegen(prog)
 }

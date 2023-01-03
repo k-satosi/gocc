@@ -20,6 +20,8 @@ func TestCompile(t *testing.T) {
 		{0, "return 0==1;"},
 		{1, "return 0<1;"},
 		{1, "return 1>0;"},
+		{3, "foo=3; return foo;"},
+		{8, "foo123=3; bar=5; return foo123+bar;"},
 	}
 
 	asmFile := "tmp.s"
@@ -36,9 +38,16 @@ func TestCompile(t *testing.T) {
 
 		token := Tokenize(v.input)
 		parser := NewParser(token)
-		node := parser.Program()
+		prog := parser.Program()
 
-		Codegen(node)
+		offset := 0
+		for v := prog.locals; v != nil; v = v.next {
+			offset += 8
+			v.offset = offset
+		}
+		prog.stackSize = offset
+
+		Codegen(prog)
 
 		f.Close()
 
@@ -53,6 +62,7 @@ func TestCompile(t *testing.T) {
 		cmd = exec.Command("./tmp")
 		cmd.Run()
 		exitCode := cmd.ProcessState.ExitCode()
+		t.Logf("%v => %v (expected: %v)\n", v.input, exitCode, v.expected)
 		if exitCode != v.expected {
 			t.Errorf("Failed to run program")
 		}

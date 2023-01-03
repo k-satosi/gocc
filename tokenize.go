@@ -11,6 +11,7 @@ type TokenKind int
 
 const (
 	TK_RESERVED TokenKind = iota
+	TK_IDENT
 	TK_NUM
 	TK_EOF
 )
@@ -21,6 +22,11 @@ type Token struct {
 	val  int
 	str  string
 	len  int
+}
+type Variable struct {
+	next   *Variable
+	name   string
+	offset int
 }
 
 func errorAt(loc string, format ...string) {
@@ -44,7 +50,7 @@ func isWhiteSpace(r rune) bool {
 }
 
 func isLetter(r rune) bool {
-	return ('A' <= r && r <= 'Z') || ('a' <= r && r <= 'z')
+	return ('A' <= r && r <= 'Z') || ('a' <= r && r <= 'z') || r == '_'
 }
 
 func isDigit(r rune) bool {
@@ -65,6 +71,15 @@ func (p *Parser) consume(op string) bool {
 	}
 	p.token = p.token.next
 	return true
+}
+
+func (p *Parser) consumeIdent() *Token {
+	if p.token.kind != TK_IDENT {
+		return nil
+	}
+	token := p.token
+	p.token = token.next
+	return token
 }
 
 func (p *Parser) expect(op string) {
@@ -99,6 +114,14 @@ func Tokenize(input string) *Token {
 		if strings.HasPrefix(input[i:], "return") && !isAlNum(rune(input[i+6])) {
 			cur = NewToken(TK_RESERVED, cur, input[i:i+6], 6)
 			i += 6
+			continue
+		}
+		if isLetter(rune(input[i])) {
+			pos := i
+			i++
+			for ; i < len(input) && isAlNum(rune(input[i])); i++ {
+			}
+			cur = NewToken(TK_IDENT, cur, input[pos:i], i-pos)
 			continue
 		}
 		if strings.HasPrefix(input[i:], "==") ||
