@@ -1,113 +1,25 @@
 package main
 
 type Function struct {
-	next   *Function
 	name   string
-	params *VarList
+	params []*Variable
 
-	node      *Node
-	locals    *VarList
+	node      []Node
+	locals    []*Variable
 	stackSize int
-}
-
-type NodeKind int
-
-const (
-	ND_ADD NodeKind = iota
-	ND_SUB
-	ND_MUL
-	ND_DIV
-	ND_EQ
-	ND_NE
-	ND_LT
-	ND_LE
-	ND_ASSIGN
-	ND_RETURN
-	ND_IF
-	ND_WHILE
-	ND_FOR
-	ND_BLOCK
-	ND_FUNCALL
-	ND_EXPR_STMT
-	ND_VAR
-	ND_NUM
-)
-
-type Node struct {
-	kind NodeKind
-	next *Node
-	lhs  *Node
-	rhs  *Node
-
-	cond *Node
-	then *Node
-	els  *Node
-	init *Node
-	inc  *Node
-
-	body *Node
-
-	funcname string
-	args     *Node
-
-	variable *Variable
-	val      int
-}
-
-type VarList struct {
-	next     *VarList
-	variable *Variable
-}
-
-func NewNode(kind NodeKind) *Node {
-	return &Node{
-		kind: kind,
-	}
-}
-
-func NewBinary(kind NodeKind, lhs *Node, rhs *Node) *Node {
-	return &Node{
-		kind: kind,
-		lhs:  lhs,
-		rhs:  rhs,
-	}
-}
-
-func NewUnary(kind NodeKind, expr *Node) *Node {
-	return &Node{
-		kind: kind,
-		lhs:  expr,
-	}
-}
-
-func NewNum(val int) *Node {
-	node := NewNode(ND_NUM)
-	node.val = val
-	return node
-}
-
-func NewVarNode(v *Variable) *Node {
-	node := NewNode(ND_VAR)
-	node.variable = v
-	return node
 }
 
 func (p *Parser) NewLVar(name string) *Variable {
 	v := &Variable{
 		name: name,
 	}
-
-	vl := &VarList{
-		variable: v,
-		next:     p.locals,
-	}
-	p.locals = vl
+	p.locals = append(p.locals, v)
 	return v
 }
 
 type Parser struct {
 	token  *Token
-	locals *VarList
+	locals []*Variable
 }
 
 func NewParser(token *Token) *Parser {
@@ -116,39 +28,33 @@ func NewParser(token *Token) *Parser {
 	}
 }
 
-func (p *Parser) Program() *Function {
-	head := Function{}
-	cur := &head
+func (p *Parser) Program() []*Function {
+	funcs := []*Function{}
 
 	for !p.token.AtEOF() {
-		cur.next = p.function()
-		cur = cur.next
+		funcs = append(funcs, p.function())
 	}
-	return head.next
+	return funcs
 }
 
-func (p *Parser) readFuncParams() *VarList {
+func (p *Parser) readFuncParams() []*Variable {
 	if p.consume(")") {
 		return nil
 	}
 
-	head := &VarList{
-		variable: p.NewLVar(p.expectIdent()),
-	}
-	cur := head
+	v := p.NewLVar(p.expectIdent())
+	l := []*Variable{v}
 
 	for !p.consume(")") {
 		p.expect(",")
-		cur.next = &VarList{}
-		cur.next.variable = p.NewLVar(p.expectIdent())
-		cur = cur.next
+		l = append(l, p.NewLVar(p.expectIdent()))
 	}
 
-	return head
+	return l
 }
 
 func (p *Parser) function() *Function {
-	p.locals = nil
+	p.locals = []*Variable{}
 
 	fn := &Function{}
 	fn.name = p.expectIdent()
@@ -156,80 +62,80 @@ func (p *Parser) function() *Function {
 	fn.params = p.readFuncParams()
 	p.expect("{")
 
-	head := &Node{}
-	cur := head
+	l := []Node{}
 	for !p.consume("}") {
-		cur.next = p.stmt()
-		cur = cur.next
+		l = append(l, p.stmt())
 	}
 
-	fn.node = head.next
+	fn.node = l
 	fn.locals = p.locals
 	return fn
 }
 
-func (p *Parser) readExprStmt() *Node {
-	return NewUnary(ND_EXPR_STMT, p.expr())
+func (p *Parser) readExprStmt() Node {
+	return NewExpressionStatement(p.expr())
 }
 
-func (p *Parser) stmt() *Node {
+func (p *Parser) stmt() Node {
 	if p.consume("return") {
-		node := NewUnary(ND_RETURN, p.expr())
+		node := NewReturn(p.expr())
 		p.expect(";")
 		return node
 	}
 
 	if p.consume("if") {
-		node := NewNode(ND_IF)
+		var cond Node
+		var then Node
+		var els Node
 		p.expect("(")
-		node.cond = p.expr()
+		cond = p.expr()
 		p.expect(")")
-		node.then = p.stmt()
+		then = p.stmt()
 		if p.consume("else") {
-			node.els = p.stmt()
+			els = p.stmt()
 		}
-		return node
+		return NewIf(cond, then, els)
 	}
 
 	if p.consume("while") {
-		node := NewNode(ND_WHILE)
 		p.expect("(")
-		node.cond = p.expr()
+		cond := p.expr()
 		p.expect(")")
-		node.then = p.stmt()
-		return node
+		then := p.stmt()
+		return NewWhile(cond, then)
 	}
 
 	if p.consume("for") {
-		node := NewNode(ND_FOR)
+		var init Node
+		var cond Node
+		var inc Node
+		var block Node
 		p.expect("(")
 		if !p.consume(";") {
-			node.init = p.readExprStmt()
+			init = p.readExprStmt()
 			p.expect(";")
 		}
 		if !p.consume(";") {
-			node.cond = p.expr()
+			cond = p.expr()
 			p.expect(";")
 		}
 		if !p.consume(")") {
-			node.inc = p.readExprStmt()
+			inc = p.readExprStmt()
 			p.expect(")")
 		}
-		node.then = p.stmt()
-		return node
+		block = p.stmt()
+		return NewFor(init, cond, inc, block)
 	}
 
 	if p.consume("{") {
-		head := Node{}
-		cur := &head
+		l := []Node{}
 
 		for !p.consume("}") {
-			cur.next = p.stmt()
-			cur = cur.next
+			l = append(l, p.stmt())
 		}
 
-		node := NewNode(ND_BLOCK)
-		node.body = head.next
+		node := NewBlock(l)
+
 		return node
 	}
 
@@ -238,105 +144,103 @@ func (p *Parser) stmt() *Node {
 	return node
 }
 
-func (p *Parser) expr() *Node {
+func (p *Parser) expr() Node {
 	return p.assign()
 }
 
-func (p *Parser) assign() *Node {
+func (p *Parser) assign() Node {
 	node := p.equality()
 	if p.consume("=") {
-		node = NewBinary(ND_ASSIGN, node, p.assign())
+		node = NewAssign(node, p.assign())
 	}
 
 	return node
 }
 
-func (p *Parser) equality() *Node {
+func (p *Parser) equality() Node {
 	node := p.relational()
 
 	for {
 		if p.consume("==") {
-			node = NewBinary(ND_EQ, node, p.relational())
+			node = NewEqual(&node, p.relational())
 		} else if p.consume("!=") {
-			node = NewBinary(ND_NE, node, p.relational())
+			node = NewNotEqual(node, p.relational())
 		} else {
 			return node
 		}
 	}
 }
 
-func (p *Parser) relational() *Node {
+func (p *Parser) relational() Node {
 	node := p.add()
 
 	for {
 		if p.consume("<") {
-			node = NewBinary(ND_LT, node, p.add())
+			node = NewLessThan(node, p.add())
 		} else if p.consume("<=") {
-			node = NewBinary(ND_LE, node, p.add())
+			node = NewLessEqual(node, p.add())
 		} else if p.consume(">") {
-			node = NewBinary(ND_LT, p.add(), node)
+			node = NewLessThan(p.add(), node)
 		} else if p.consume(">=") {
-			node = NewBinary(ND_LE, p.add(), node)
+			node = NewLessEqual(p.add(), node)
 		} else {
 			return node
 		}
 	}
 }
 
-func (p *Parser) add() *Node {
+func (p *Parser) add() Node {
 	node := p.mul()
 
 	for {
 		if p.consume("+") {
-			node = NewBinary(ND_ADD, node, p.mul())
+			node = NewAdd(node, p.mul())
 		} else if p.consume(("-")) {
-			node = NewBinary(ND_SUB, node, p.mul())
+			node = NewSub(node, p.mul())
 		} else {
 			return node
 		}
 	}
 }
 
-func (p *Parser) mul() *Node {
+func (p *Parser) mul() Node {
 	node := p.unary()
 
 	for {
 		if p.consume("*") {
-			node = NewBinary(ND_MUL, node, p.unary())
+			node = NewMul(node, p.unary())
 		} else if p.consume("/") {
-			node = NewBinary(ND_DIV, node, p.unary())
+			node = NewDiv(node, p.unary())
 		} else {
 			return node
 		}
 	}
 }
 
-func (p *Parser) unary() *Node {
+func (p *Parser) unary() Node {
 	if p.consume("+") {
 		return p.unary()
 	} else if p.consume("-") {
-		return NewBinary(ND_SUB, NewNum(0), p.unary())
+		return NewSub(NewNumber(0), p.unary())
 	} else {
 		return p.primary()
 	}
 }
 
-func (p *Parser) funcArgs() *Node {
+func (p *Parser) funcArgs() []Node {
 	if p.consume(")") {
 		return nil
 	}
 
-	head := p.assign()
-	cur := head
+	l := []Node{p.assign()}
 	for p.consume(",") {
-		cur.next = p.assign()
-		cur = cur.next
+		l = append(l, p.assign())
 	}
 	p.expect(")")
-	return head
+	return l
 }
 
-func (p *Parser) primary() *Node {
+func (p *Parser) primary() Node {
 	if p.consume("(") {
 		node := p.expr()
 		p.expect(")")
@@ -345,10 +249,9 @@ func (p *Parser) primary() *Node {
 
 	if token := p.consumeIdent(); token != nil {
 		if p.consume("(") {
-			node := NewNode(ND_FUNCALL)
-			node.funcname = token.str
-			node.args = p.funcArgs()
-			return node
+			name := token.str
+			args := p.funcArgs()
+			return NewFuncCall(name, args)
 		}
 		v := p.findVariable(token)
 		if v == nil {
@@ -357,14 +260,13 @@ func (p *Parser) primary() *Node {
 		return NewVarNode(v)
 	}
 
-	return NewNum(p.expectNumber())
+	return NewNumber(p.expectNumber())
 }
 
 func (p *Parser) findVariable(token *Token) *Variable {
-	for vl := p.locals; vl != nil; vl = vl.next {
-		v := vl.variable
-		if token.str == v.name {
-			return v
+	for i := range p.locals {
+		if token.str == p.locals[i].name {
+			return p.locals[i]
 		}
 	}
 	return nil

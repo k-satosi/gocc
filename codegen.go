@@ -15,9 +15,9 @@ var argreg = []string{
 }
 var funcname string
 
-func genAddr(node *Node) {
-	if node.kind == ND_VAR {
-		fmt.Printf("  lea rax, [rbp-%d]\n", node.variable.offset)
+func genAddr(node Node) {
+	if v, ok := node.(*VarNode); ok {
+		fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
 		fmt.Printf("  push rax\n")
 		return
 	}
@@ -38,86 +38,86 @@ func store() {
 	fmt.Printf("  push rdi\n")
 }
 
-func gen(node *Node) {
-	switch node.kind {
-	case ND_NUM:
-		fmt.Printf("  push %d\n", node.val)
+func gen(node Node) {
+	switch v := node.(type) {
+	case *Number:
+		fmt.Printf("  push %d\n", v.val)
 		return
-	case ND_EXPR_STMT:
-		gen(node.lhs)
+	case *ExpressionStatement:
+		gen(v.statement)
 		fmt.Printf("  add rsp, 8\n")
 		return
-	case ND_VAR:
+	case *VarNode:
 		genAddr(node)
 		load()
 		return
-	case ND_ASSIGN:
-		genAddr(node.lhs)
-		gen(node.rhs)
+	case *Assign:
+		genAddr(v.lhs)
+		gen(v.rhs)
 		store()
 		return
-	case ND_IF:
+	case *If:
 		labelseq++
 		seq := labelseq
-		if node.els != nil {
-			gen(node.cond)
+		if v.els != nil {
+			gen(v.cond)
 			fmt.Printf("  pop rax\n")
 			fmt.Printf("  cmp rax, 0\n")
 			fmt.Printf("  je .L.else.%d\n", seq)
-			gen(node.then)
+			gen(v.then)
 			fmt.Printf("  jmp .L.end.%d\n", seq)
 			fmt.Printf(".L.else.%d\n", seq)
-			gen(node.els)
+			gen(v.els)
 			fmt.Printf(".L.end.%d:\n", seq)
 		} else {
-			gen(node.cond)
+			gen(v.cond)
 			fmt.Printf("  pop rax\n")
 			fmt.Printf("  cmp rax, 0\n")
 			fmt.Printf("  je .L.end.%d\n", seq)
-			gen(node.then)
+			gen(v.then)
 			fmt.Printf(".L.end.%d:\n", seq)
 		}
 		return
-	case ND_WHILE:
+	case *While:
 		labelseq++
 		seq := labelseq
 		fmt.Printf(".L.begin.%d:\n", seq)
-		gen(node.cond)
+		gen(v.cond)
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  cmp rax, 0\n")
 		fmt.Printf("  je .L.end.%d\n", seq)
-		gen(node.then)
+		gen(v.then)
 		fmt.Printf("  jmp .L.begin.%d\n", seq)
 		fmt.Printf(".L.end.%d:\n", seq)
 		return
-	case ND_FOR:
+	case *For:
 		labelseq++
 		seq := labelseq
-		if node.init != nil {
-			gen(node.init)
+		if v.init != nil {
+			gen(v.init)
 		}
 		fmt.Printf(".L.begin.%d:\n", seq)
-		if node.cond != nil {
-			gen(node.cond)
+		if v.cond != nil {
+			gen(v.cond)
 			fmt.Printf("  pop rax\n")
 			fmt.Printf("  cmp rax, 0\n")
 			fmt.Printf("  je .L.end.%d\n", seq)
 		}
-		gen(node.then)
-		if node.inc != nil {
-			gen(node.inc)
+		gen(v.block)
+		if v.inc != nil {
+			gen(v.inc)
 		}
 		fmt.Printf("  jmp .L.begin.%d\n", seq)
 		fmt.Printf(".L.end.%d:\n", seq)
 		return
-	case ND_BLOCK:
-		for n := node.body; n != nil; n = n.next {
+	case *Block:
+		for _, n := range v.body {
 			gen(n)
 		}
 		return
-	case ND_FUNCALL:
+	case *FuncCall:
 		nargs := 0
-		for arg := node.args; arg != nil; arg = arg.next {
+		for _, arg := range v.args {
 			gen(arg)
 			nargs++
 		}
@@ -131,52 +131,62 @@ func gen(node *Node) {
 		fmt.Printf("  and rax, 15\n")
 		fmt.Printf("  jnz .L.call.%d\n", seq)
 		fmt.Printf("  mov rax, 0\n")
-		fmt.Printf("  call %s\n", node.funcname)
+		fmt.Printf("  call %s\n", v.name)
 		fmt.Printf("  jmp .L.end.%d\n", seq)
 		fmt.Printf(".L.call.%d:\n", seq)
 		fmt.Printf("  sub rsp, 8\n")
 		fmt.Printf("  mov rax, 0\n")
-		fmt.Printf("  call %s\n", node.funcname)
+		fmt.Printf("  call %s\n", v.name)
 		fmt.Printf("  add rsp, 8\n")
 		fmt.Printf(".L.end.%d:\n", seq)
 		fmt.Printf("  push rax\n")
 		return
-	case ND_RETURN:
-		gen(node.lhs)
+	case *Return:
+		gen(v.expr)
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  jmp .L.return.%s\n", funcname)
 		return
 	}
 
-	gen(node.lhs)
-	gen(node.rhs)
+	f := func(lhs Node, rhs Node) {
+		gen(lhs)
+		gen(rhs)
 
-	fmt.Printf("  pop rdi\n")
-	fmt.Printf("  pop rax\n")
+		fmt.Printf("  pop rdi\n")
+		fmt.Printf("  pop rax\n")
+	}
 
-	switch node.kind {
-	case ND_ADD:
+	switch v := node.(type) {
+	case *Add:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  add rax, rdi\n")
-	case ND_SUB:
+	case *Sub:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  sub rax, rdi\n")
-	case ND_MUL:
+	case *Mul:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  imul rax, rdi\n")
-	case ND_DIV:
+	case *Div:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  cqo\n")
 		fmt.Printf("  idiv rdi\n")
-	case ND_EQ:
+	case *Equal:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  sete al\n")
 		fmt.Printf("  movzb rax, al\n")
-	case ND_NE:
+	case *NotEqual:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setne al\n")
 		fmt.Printf("  movzb rax, al\n")
-	case ND_LT:
+	case *LessThan:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setl al\n")
 		fmt.Printf("  movzb rax, al\n")
-	case ND_LE:
+	case *LessEqual:
+		f(v.lhs, v.rhs)
 		fmt.Printf("  cmp rax, rdi\n")
 		fmt.Printf("  setle al\n")
 		fmt.Printf("  movzb rax, al\n")
@@ -185,26 +195,25 @@ func gen(node *Node) {
 	fmt.Printf("  push rax\n")
 }
 
-func Codegen(prog *Function) {
+func Codegen(prog []*Function) {
 	fmt.Printf(".intel_syntax noprefix\n")
 
-	for fn := prog; fn != nil; fn = fn.next {
+	for _, fn := range prog {
 		fmt.Printf(".global %s\n", fn.name)
 		fmt.Printf("%s:\n", fn.name)
 		funcname = fn.name
 
 		fmt.Printf("  push rbp\n")
 		fmt.Printf("  mov rbp, rsp\n")
-		fmt.Printf("  sub rsp, %d\n", prog.stackSize)
+		fmt.Printf("  sub rsp, %d\n", fn.stackSize)
 
 		i := 0
-		for vl := fn.params; vl != nil; vl = vl.next {
-			v := vl.variable
+		for _, v := range fn.params {
 			fmt.Printf("  mov [rbp-%d], %s\n", v.offset, argreg[i])
 			i++
 		}
 
-		for n := fn.node; n != nil; n = n.next {
+		for _, n := range fn.node {
 			gen(n)
 		}
 

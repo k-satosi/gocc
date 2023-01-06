@@ -19,13 +19,13 @@ func compile(input string) {
 	parser := NewParser(token)
 	prog := parser.Program()
 
-	for fn := prog; fn != nil; fn = fn.next {
+	for i := range prog {
 		offset := 0
-		for vl := fn.locals; vl != nil; vl = vl.next {
+		for j := range prog[i].locals {
 			offset += 8
-			vl.variable.offset = offset
+			prog[i].locals[j].offset = offset
 		}
-		prog.stackSize = offset
+		prog[i].stackSize = offset
 	}
 
 	Codegen(prog)

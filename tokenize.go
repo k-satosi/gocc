@@ -23,11 +23,6 @@ type Token struct {
 	str  string
 	len  int
 }
-type Variable struct {
-	next   *Variable
-	name   string
-	offset int
-}
 
 func errorAt(loc string, format string, a ...string) {
 	fmt.Println(loc)
