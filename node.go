@@ -1,127 +1,146 @@
 package main
 
 type Node interface {
+	Gen()
 }
 
 type Unary interface {
 	Node
 }
 
-type Binary interface {
+type BinaryNode interface {
 	Node
+	Lhs() Node
+	Rhs() Node
+	ApplyOperation()
 }
 
-type Add struct {
-	Binary
+type Binary struct {
+	BinaryNode
 	lhs Node
 	rhs Node
+}
+
+func (b *Binary) Lhs() Node {
+	return b.lhs
+}
+
+func (b *Binary) Rhs() Node {
+	return b.rhs
+}
+
+// func (b *Binary) ApplyOperation() {}
+
+type Add struct {
+	*Binary
 }
 
 func NewAdd(lhs Node, rhs Node) *Add {
 	return &Add{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type Sub struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewSub(lhs Node, rhs Node) *Sub {
 	return &Sub{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type Mul struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewMul(lhs Node, rhs Node) *Mul {
 	return &Mul{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type Div struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewDiv(lhs Node, rhs Node) *Div {
 	return &Div{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type Equal struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewEqual(lhs Node, rhs Node) *Equal {
 	return &Equal{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type NotEqual struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewNotEqual(lhs Node, rhs Node) *NotEqual {
 	return &NotEqual{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type LessThan struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewLessThan(lhs Node, rhs Node) *LessThan {
 	return &LessThan{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type LessEqual struct {
-	Binary
-	lhs Node
-	rhs Node
+	*Binary
 }
 
 func NewLessEqual(lhs Node, rhs Node) *LessEqual {
 	return &LessEqual{
-		lhs: lhs,
-		rhs: rhs,
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
 	}
 }
 
 type Assign struct {
-	Binary
-	lhs Node
+	lhs *VarNode
 	rhs Node
 }
 
-func NewAssign(lhs Node, rhs Node) *Assign {
+func NewAssign(lhs *VarNode, rhs Node) *Assign {
 	return &Assign{
 		lhs: lhs,
 		rhs: rhs,

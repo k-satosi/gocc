@@ -151,7 +151,7 @@ func (p *Parser) expr() Node {
 func (p *Parser) assign() Node {
 	node := p.equality()
 	if p.consume("=") {
-		node = NewAssign(node, p.assign())
+		node = NewAssign(node.(*VarNode), p.assign())
 	}
 
 	return node
@@ -162,7 +162,7 @@ func (p *Parser) equality() Node {
 
 	for {
 		if p.consume("==") {
-			node = NewEqual(&node, p.relational())
+			node = NewEqual(node, p.relational())
 		} else if p.consume("!=") {
 			node = NewNotEqual(node, p.relational())
 		} else {
