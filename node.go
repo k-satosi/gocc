@@ -2,6 +2,7 @@ package main
 
 type Node interface {
 	Gen()
+	AddType()
 }
 
 type Unary interface {
@@ -19,6 +20,7 @@ type Binary struct {
 	BinaryNode
 	lhs Node
 	rhs Node
+	ty  *Type
 }
 
 func (b *Binary) Lhs() Node {
@@ -27,6 +29,12 @@ func (b *Binary) Lhs() Node {
 
 func (b *Binary) Rhs() Node {
 	return b.rhs
+}
+
+func (b *Binary) AddType() {
+	b.lhs.AddType()
+	b.rhs.AddType()
+	b.ty = intType
 }
 
 // func (b *Binary) ApplyOperation() {}
@@ -138,6 +146,7 @@ func NewLessEqual(lhs Node, rhs Node) *LessEqual {
 type Assign struct {
 	lhs *VarNode
 	rhs Node
+	ty  *Type
 }
 
 func NewAssign(lhs *VarNode, rhs Node) *Assign {
@@ -145,6 +154,10 @@ func NewAssign(lhs *VarNode, rhs Node) *Assign {
 		lhs: lhs,
 		rhs: rhs,
 	}
+}
+
+func (a *Assign) AddType() {
+	a.ty = a.lhs.ty
 }
 
 type Return struct {
@@ -158,13 +171,16 @@ func NewReturn(expr Node) *Return {
 	}
 }
 
+func (r *Return) AddType() {}
+
 type If struct {
+	Node
 	cond Node
 	then Node
 	els  Node
 }
 
-func NewIf(cond Node, then Node, els Node) Node {
+func NewIf(cond Node, then Node, els Node) *If {
 	return &If{
 		cond: cond,
 		then: then,
@@ -172,7 +188,16 @@ func NewIf(cond Node, then Node, els Node) Node {
 	}
 }
 
+func (f *If) AddType() {
+	f.cond.AddType()
+	f.then.AddType()
+	if f.els != nil {
+		f.els.AddType()
+	}
+}
+
 type While struct {
+	Node
 	cond Node
 	then Node
 }
@@ -182,6 +207,11 @@ func NewWhile(cond Node, then Node) *While {
 		cond: cond,
 		then: then,
 	}
+}
+
+func (w *While) AddType() {
+	w.cond.AddType()
+	w.then.AddType()
 }
 
 type For struct {
@@ -200,6 +230,19 @@ func NewFor(init Node, cond Node, inc Node, block Node) *For {
 	}
 }
 
+func (f *For) AddType() {
+	if f.init != nil {
+		f.init.AddType()
+	}
+	if f.cond != nil {
+		f.cond.AddType()
+	}
+	if f.inc != nil {
+		f.inc.AddType()
+	}
+	f.block.AddType()
+}
+
 type Block struct {
 	body []Node
 }
@@ -210,9 +253,16 @@ func NewBlock(block []Node) *Block {
 	}
 }
 
+func (b *Block) AddType() {
+	for i := range b.body {
+		b.body[i].AddType()
+	}
+}
+
 type FuncCall struct {
 	name string
 	args []Node
+	ty   *Type
 }
 
 func NewFuncCall(name string, args []Node) *FuncCall {
@@ -220,6 +270,13 @@ func NewFuncCall(name string, args []Node) *FuncCall {
 		name: name,
 		args: args,
 	}
+}
+
+func (f *FuncCall) AddType() {
+	for i := range f.args {
+		f.args[i].AddType()
+	}
+	f.ty = intType
 }
 
 type ExpressionStatement struct {
@@ -232,14 +289,18 @@ func NewExpressionStatement(expr Node) *ExpressionStatement {
 	}
 }
 
+func (e *ExpressionStatement) AddType() {}
+
 type Variable struct {
 	name   string
+	ty     *Type
 	offset int
 }
 
 type VarNode struct {
 	Node
 	variable *Variable
+	ty       *Type
 }
 
 func NewVarNode(v *Variable) *VarNode {
@@ -248,13 +309,30 @@ func NewVarNode(v *Variable) *VarNode {
 	}
 }
 
+func (v *VarNode) AddType() {
+	v.ty = v.variable.ty
+}
+
 type Number struct {
 	Node
 	val int
+	ty  *Type
 }
 
 func NewNumber(val int) *Number {
 	return &Number{
 		val: val,
 	}
+}
+
+func (n *Number) AddType() {
+	n.ty = intType
+}
+
+type Null struct {
+	Node
+}
+
+func NewNull() *Null {
+	return &Null{}
 }

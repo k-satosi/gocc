@@ -15,14 +15,9 @@ var argreg = []string{
 }
 var funcname string
 
-func genAddr(node Node) {
-	if v, ok := node.(*VarNode); ok {
-		fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
-		fmt.Printf("  push rax\n")
-		return
-	}
-
-	fmt.Printf("not an lvalue")
+func (v *VarNode) genAddr() {
+	fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
+	fmt.Printf("  push rax\n")
 }
 
 func load() {
@@ -43,18 +38,18 @@ func (n *Number) Gen() {
 }
 
 func (e *ExpressionStatement) Gen() {
-	gen(e.statement)
+	e.statement.Gen()
 	fmt.Printf("  add rsp, 8\n")
 }
 
 func (v *VarNode) Gen() {
-	genAddr(v)
+	v.genAddr()
 	load()
 }
 
 func (a *Assign) Gen() {
-	genAddr(a.lhs)
-	gen(a.rhs)
+	a.lhs.genAddr()
+	a.rhs.Gen()
 	store()
 }
 
@@ -62,21 +57,21 @@ func (i *If) Gen() {
 	labelseq++
 	seq := labelseq
 	if i.els != nil {
-		gen(i.cond)
+		i.cond.Gen()
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  cmp rax, 0\n")
 		fmt.Printf("  je .L.else.%d\n", seq)
-		gen(i.then)
+		i.then.Gen()
 		fmt.Printf("  jmp .L.end.%d\n", seq)
 		fmt.Printf(".L.else.%d\n", seq)
-		gen(i.els)
+		i.els.Gen()
 		fmt.Printf(".L.end.%d:\n", seq)
 	} else {
-		gen(i.cond)
+		i.cond.Gen()
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  cmp rax, 0\n")
 		fmt.Printf("  je .L.end.%d\n", seq)
-		gen(i.then)
+		i.then.Gen()
 		fmt.Printf(".L.end.%d:\n", seq)
 	}
 }
@@ -85,11 +80,11 @@ func (w *While) Gen() {
 	labelseq++
 	seq := labelseq
 	fmt.Printf(".L.begin.%d:\n", seq)
-	gen(w.cond)
+	w.cond.Gen()
 	fmt.Printf("  pop rax\n")
 	fmt.Printf("  cmp rax, 0\n")
 	fmt.Printf("  je .L.end.%d\n", seq)
-	gen(w.then)
+	w.then.Gen()
 	fmt.Printf("  jmp .L.begin.%d\n", seq)
 	fmt.Printf(".L.end.%d:\n", seq)
 }
@@ -98,18 +93,18 @@ func (f *For) Gen() {
 	labelseq++
 	seq := labelseq
 	if f.init != nil {
-		gen(f.init)
+		f.init.Gen()
 	}
 	fmt.Printf(".L.begin.%d:\n", seq)
 	if f.cond != nil {
-		gen(f.cond)
+		f.cond.Gen()
 		fmt.Printf("  pop rax\n")
 		fmt.Printf("  cmp rax, 0\n")
 		fmt.Printf("  je .L.end.%d\n", seq)
 	}
-	gen(f.block)
+	f.block.Gen()
 	if f.inc != nil {
-		gen(f.inc)
+		f.inc.Gen()
 	}
 	fmt.Printf("  jmp .L.begin.%d\n", seq)
 	fmt.Printf(".L.end.%d:\n", seq)
@@ -117,14 +112,14 @@ func (f *For) Gen() {
 
 func (b *Block) Gen() {
 	for _, n := range b.body {
-		gen(n)
+		n.Gen()
 	}
 }
 
 func (f *FuncCall) Gen() {
 	nargs := 0
 	for _, arg := range f.args {
-		gen(arg)
+		arg.Gen()
 		nargs++
 	}
 	for i := nargs - 1; i >= 0; i-- {
@@ -149,14 +144,14 @@ func (f *FuncCall) Gen() {
 }
 
 func (r *Return) Gen() {
-	gen(r.expr)
+	r.expr.Gen()
 	fmt.Printf("  pop rax\n")
 	fmt.Printf("  jmp .L.return.%s\n", funcname)
 }
 
 func (b *Binary) Gen() {
-	gen(b.Lhs())
-	gen(b.Rhs())
+	b.Lhs().Gen()
+	b.Rhs().Gen()
 	fmt.Printf("  pop rdi\n")
 	fmt.Printf("  pop rax\n")
 }
@@ -218,10 +213,6 @@ func (l *LessEqual) Gen() {
 	fmt.Printf("  push rax\n")
 }
 
-func gen(node Node) {
-	node.Gen()
-}
-
 func Codegen(prog []*Function) {
 	fmt.Printf(".intel_syntax noprefix\n")
 
@@ -241,7 +232,7 @@ func Codegen(prog []*Function) {
 		}
 
 		for _, n := range fn.node {
-			gen(n)
+			n.Gen()
 		}
 
 		fmt.Printf(".L.return.%s:\n", funcname)

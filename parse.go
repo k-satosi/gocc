@@ -9,9 +9,10 @@ type Function struct {
 	stackSize int
 }
 
-func (p *Parser) NewLVar(name string) *Variable {
+func (p *Parser) NewLVar(name string, ty *Type) *Variable {
 	v := &Variable{
 		name: name,
+		ty:   ty,
 	}
 	p.locals = append(p.locals, v)
 	return v
@@ -37,17 +38,31 @@ func (p *Parser) Program() []*Function {
 	return funcs
 }
 
+func (p *Parser) baseType() *Type {
+	p.expect("int")
+	ty := intType
+	for p.consume("*") {
+		ty = pointerTo(ty)
+	}
+	return ty
+}
+
+func (p *Parser) readFuncParam() *Variable {
+	ty := p.baseType()
+	name := p.expectIdent()
+	return p.NewLVar(name, ty)
+}
+
 func (p *Parser) readFuncParams() []*Variable {
 	if p.consume(")") {
 		return nil
 	}
 
-	v := p.NewLVar(p.expectIdent())
-	l := []*Variable{v}
+	l := []*Variable{p.readFuncParam()}
 
 	for !p.consume(")") {
 		p.expect(",")
-		l = append(l, p.NewLVar(p.expectIdent()))
+		l = append(l, p.readFuncParam())
 	}
 
 	return l
@@ -57,6 +72,7 @@ func (p *Parser) function() *Function {
 	p.locals = []*Variable{}
 
 	fn := &Function{}
+	p.baseType()
 	fn.name = p.expectIdent()
 	p.expect("(")
 	fn.params = p.readFuncParams()
@@ -72,11 +88,33 @@ func (p *Parser) function() *Function {
 	return fn
 }
 
+func (p *Parser) declaration() Node {
+	ty := p.baseType()
+	ident := p.expectIdent()
+	v := p.NewLVar(ident, ty)
+	if p.consume(";") {
+		return NewNull()
+	}
+
+	p.expect("=")
+	lhs := NewVarNode(v)
+	rhs := p.expr()
+	p.expect(";")
+	node := NewAssign(lhs, rhs)
+	return NewExpressionStatement(node)
+}
+
 func (p *Parser) readExprStmt() Node {
 	return NewExpressionStatement(p.expr())
 }
 
 func (p *Parser) stmt() Node {
+	node := p.stmt2()
+	node.AddType()
+	return node
+}
+
+func (p *Parser) stmt2() Node {
 	if p.consume("return") {
 		node := NewReturn(p.expr())
 		p.expect(";")
@@ -137,6 +175,10 @@ func (p *Parser) stmt() Node {
 		node := NewBlock(l)
 
 		return node
+	}
+
+	if p.peek("int") {
+		return p.declaration()
 	}
 
 	node := p.readExprStmt()
@@ -255,7 +297,7 @@ func (p *Parser) primary() Node {
 		}
 		v := p.findVariable(token)
 		if v == nil {
-			v = p.NewLVar(token.str)
+			errorToken(token, "undefined variable")
 		}
 		return NewVarNode(v)
 	}

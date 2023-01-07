@@ -31,6 +31,12 @@ func errorAt(loc string, format string, a ...string) {
 	os.Exit(1)
 }
 
+func errorToken(tok *Token, format string, a ...string) {
+	fmt.Printf(format, a)
+	fmt.Println()
+	os.Exit(1)
+}
+
 func NewToken(kind TokenKind, cur *Token, str string, len int) *Token {
 	tok := &Token{
 		kind: kind,
@@ -67,6 +73,10 @@ func (p *Parser) consume(op string) bool {
 	}
 	p.token = p.token.next
 	return true
+}
+
+func (p *Parser) peek(s string) bool {
+	return p.token.str == s
 }
 
 func (p *Parser) consumeIdent() *Token {
@@ -108,7 +118,7 @@ func (t *Token) AtEOF() bool {
 }
 
 func startsWithReserved(s string) (string, bool) {
-	keywords := []string{"return", "if", "else", "while", "for"}
+	keywords := []string{"return", "if", "else", "while", "for", "int"}
 	for _, v := range keywords {
 		if strings.HasPrefix(s, v) {
 			return v, true
