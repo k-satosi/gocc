@@ -9,7 +9,7 @@ type Function struct {
 	stackSize int
 }
 
-func (p *Parser) NewLVar(name string, ty *Type) *Variable {
+func (p *Parser) NewLVar(name string, ty Type) *Variable {
 	v := &Variable{
 		name: name,
 		ty:   ty,
@@ -38,18 +38,28 @@ func (p *Parser) Program() []*Function {
 	return funcs
 }
 
-func (p *Parser) baseType() *Type {
+func (p *Parser) baseType() Type {
 	p.expect("int")
 	ty := intType
 	for p.consume("*") {
-		ty = pointerTo(ty)
+		ty = NewPointerType(ty)
 	}
 	return ty
+}
+
+func (p *Parser) readTypeSuffix(base Type) Type {
+	if !p.consume("[") {
+		return base
+	}
+	size := p.expectNumber()
+	p.expect(("]"))
+	return NewArrayType(base, size)
 }
 
 func (p *Parser) readFuncParam() *Variable {
 	ty := p.baseType()
 	name := p.expectIdent()
+	ty = p.readTypeSuffix(ty)
 	return p.NewLVar(name, ty)
 }
 
@@ -91,6 +101,7 @@ func (p *Parser) function() *Function {
 func (p *Parser) declaration() Node {
 	ty := p.baseType()
 	ident := p.expectIdent()
+	ty = p.readTypeSuffix(ty)
 	v := p.NewLVar(ident, ty)
 	if p.consume(";") {
 		return NewNull()
@@ -193,7 +204,7 @@ func (p *Parser) expr() Node {
 func (p *Parser) assign() Node {
 	node := p.equality()
 	if p.consume("=") {
-		node = NewAssign(node.(*VarNode), p.assign())
+		node = NewAssign(node, p.assign())
 	}
 
 	return node

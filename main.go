@@ -22,7 +22,7 @@ func compile(input string) {
 	for i := range prog {
 		offset := 0
 		for j := range prog[i].locals {
-			offset += 8
+			offset += prog[i].locals[j].ty.size()
 			prog[i].locals[j].offset = offset
 		}
 		prog[i].stackSize = offset

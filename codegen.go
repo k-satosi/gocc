@@ -48,11 +48,18 @@ func (e *ExpressionStatement) Gen() {
 
 func (v *VarNode) Gen() {
 	v.genAddr()
-	load()
+	if _, ok := v.variable.ty.(*ArrayType); !ok {
+		load()
+	}
 }
 
 func (a *Assign) Gen() {
-	a.lhs.genAddr()
+	switch v := a.lhs.(type) {
+	case *VarNode:
+		v.genAddr()
+	case *Dereference:
+		v.genAddr()
+	}
 	a.rhs.Gen()
 	store()
 }
@@ -68,7 +75,9 @@ func (a *Address) Gen() {
 
 func (d *Dereference) Gen() {
 	d.expr.Gen()
-	load()
+	if _, ok := d.ty.(*ArrayType); !ok {
+		load()
+	}
 }
 
 func (i *If) Gen() {
@@ -230,6 +239,8 @@ func (l *LessEqual) Gen() {
 	fmt.Printf("  movzb rax, al\n")
 	fmt.Printf("  push rax\n")
 }
+
+func (n *Null) Gen() {}
 
 func Codegen(prog []*Function) {
 	fmt.Printf(".intel_syntax noprefix\n")

@@ -3,7 +3,7 @@ package main
 type Node interface {
 	Gen()
 	AddType()
-	Type() *Type
+	Type() Type
 }
 
 type Unary interface {
@@ -21,7 +21,7 @@ type Binary struct {
 	BinaryNode
 	lhs Node
 	rhs Node
-	ty  *Type
+	ty  Type
 }
 
 func (b *Binary) Lhs() Node {
@@ -184,12 +184,12 @@ func NewLessEqual(lhs Node, rhs Node) *LessEqual {
 }
 
 type Assign struct {
-	lhs *VarNode
+	lhs Node
 	rhs Node
-	ty  *Type
+	ty  Type
 }
 
-func NewAssign(lhs *VarNode, rhs Node) *Assign {
+func NewAssign(lhs Node, rhs Node) *Assign {
 	return &Assign{
 		lhs: lhs,
 		rhs: rhs,
@@ -197,17 +197,22 @@ func NewAssign(lhs *VarNode, rhs Node) *Assign {
 }
 
 func (a *Assign) AddType() {
-	a.ty = a.lhs.ty
+	switch v := a.lhs.(type) {
+	case *VarNode:
+		a.ty = v.ty
+	case *Dereference:
+		a.ty = v.ty
+	}
 }
 
-func (a *Assign) Type() *Type {
+func (a *Assign) Type() Type {
 	return a.ty
 }
 
 type Address struct {
 	Unary
 	expr Node
-	ty   *Type
+	ty   Type
 }
 
 func NewAddress(expr Node) *Address {
@@ -217,13 +222,17 @@ func NewAddress(expr Node) *Address {
 }
 
 func (a *Address) AddType() {
-	a.ty = pointerTo(a.expr.Type())
+	if t, ok := a.expr.Type().(*ArrayType); ok {
+		a.ty = NewPointerType(t.base)
+	} else {
+		a.ty = NewPointerType(t)
+	}
 }
 
 type Dereference struct {
 	Unary
 	expr Node
-	ty   *Type
+	ty   Type
 }
 
 func NewDereference(expr Node) *Dereference {
@@ -233,10 +242,13 @@ func NewDereference(expr Node) *Dereference {
 }
 
 func (d *Dereference) AddType() {
-	if d.expr.Type().kind != TY_PTR {
-		errorToken(nil, "invalid pointer dereference")
-	} else {
-		d.ty = d.expr.Type().base
+	switch v := d.expr.Type().(type) {
+	case *ArrayType:
+		d.ty = v.base
+	case *PointerType:
+		d.ty = v.base
+	default:
+		errorAt("", "invalid pointer dereference")
 	}
 }
 
@@ -323,7 +335,7 @@ func (f *For) AddType() {
 	f.block.AddType()
 }
 
-func (f *For) Type() *Type {
+func (f *For) Type() Type {
 	return nil
 }
 
@@ -343,14 +355,14 @@ func (b *Block) AddType() {
 	}
 }
 
-func (b *Block) Type() *Type {
+func (b *Block) Type() Type {
 	return nil
 }
 
 type FuncCall struct {
 	name string
 	args []Node
-	ty   *Type
+	ty   Type
 }
 
 func NewFuncCall(name string, args []Node) *FuncCall {
@@ -367,7 +379,7 @@ func (f *FuncCall) AddType() {
 	f.ty = intType
 }
 
-func (f *FuncCall) Type() *Type {
+func (f *FuncCall) Type() Type {
 	return f.ty
 }
 
@@ -383,20 +395,20 @@ func NewExpressionStatement(expr Node) *ExpressionStatement {
 
 func (e *ExpressionStatement) AddType() {}
 
-func (e *ExpressionStatement) Type() *Type {
+func (e *ExpressionStatement) Type() Type {
 	return intType
 }
 
 type Variable struct {
 	name   string
-	ty     *Type
+	ty     Type
 	offset int
 }
 
 type VarNode struct {
 	Node
 	variable *Variable
-	ty       *Type
+	ty       Type
 }
 
 func NewVarNode(v *Variable) *VarNode {
@@ -412,7 +424,7 @@ func (v *VarNode) AddType() {
 type Number struct {
 	Node
 	val int
-	ty  *Type
+	ty  Type
 }
 
 func NewNumber(val int) *Number {
@@ -432,3 +444,5 @@ type Null struct {
 func NewNull() *Null {
 	return &Null{}
 }
+
+func (n *Null) AddType() {}

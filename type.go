@@ -2,23 +2,50 @@ package main
 
 type TypeKind int
 
-const (
-	TY_INT TypeKind = iota
-	TY_PTR
-)
-
-type Type struct {
-	kind TypeKind
-	base *Type
+type Type interface {
+	size() int
 }
 
-var intType *Type = &Type{
-	kind: TY_INT,
+type IntType struct{}
+
+func NewIntType() *IntType {
+	return &IntType{}
 }
 
-func pointerTo(base *Type) *Type {
-	return &Type{
-		kind: TY_PTR,
+func (i *IntType) size() int {
+	return 8
+}
+
+type PointerType struct {
+	Type
+	base Type
+}
+
+func NewPointerType(base Type) *PointerType {
+	return &PointerType{
 		base: base,
 	}
+}
+
+func (p *PointerType) size() int {
+	return 8
+}
+
+var intType Type = NewIntType()
+
+type ArrayType struct {
+	Type
+	base Type
+	len  int
+}
+
+func NewArrayType(base Type, len int) *ArrayType {
+	return &ArrayType{
+		base: base,
+		len:  len,
+	}
+}
+
+func (a *ArrayType) size() int {
+	return a.base.size() * a.len
 }

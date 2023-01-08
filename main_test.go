@@ -38,6 +38,8 @@ func TestCompile(t *testing.T) {
 		{55, "int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }"},
 
 		{8, "int main() { int x=3; int y=5; return foo(&x, y); } int foo(int *x, int y) { return *x + y; }"},
+
+		{3, "int main() { int x[2]; int *y=&x; *y=3; return *x; }"},
 	}
 
 	asmFile := "tmp.s"
