@@ -264,6 +264,10 @@ func (p *Parser) unary() Node {
 		return p.unary()
 	} else if p.consume("-") {
 		return NewSub(NewNumber(0), p.unary())
+	} else if p.consume("&") {
+		return NewAddress(p.unary())
+	} else if p.consume("*") {
+		return NewDereference(p.unary())
 	} else {
 		return p.primary()
 	}

@@ -3,6 +3,7 @@ package main
 type Node interface {
 	Gen()
 	AddType()
+	Type() *Type
 }
 
 type Unary interface {
@@ -52,12 +53,51 @@ func NewAdd(lhs Node, rhs Node) *Add {
 	}
 }
 
+type PointerAdd struct {
+	*Binary
+}
+
+func NewPointerAdd(lhs Node, rhs Node) *PointerAdd {
+	return &PointerAdd{
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
+	}
+}
+
 type Sub struct {
 	*Binary
 }
 
 func NewSub(lhs Node, rhs Node) *Sub {
 	return &Sub{
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
+	}
+}
+
+type PointerSub struct {
+	*Binary
+}
+
+func NewPointterSub(lhs Node, rhs Node) *PointerSub {
+	return &PointerSub{
+		&Binary{
+			lhs: lhs,
+			rhs: rhs,
+		},
+	}
+}
+
+type PointerDiff struct {
+	*Binary
+}
+
+func NewPointterDiff(lhs Node, rhs Node) *PointerDiff {
+	return &PointerDiff{
 		&Binary{
 			lhs: lhs,
 			rhs: rhs,
@@ -160,6 +200,46 @@ func (a *Assign) AddType() {
 	a.ty = a.lhs.ty
 }
 
+func (a *Assign) Type() *Type {
+	return a.ty
+}
+
+type Address struct {
+	Unary
+	expr Node
+	ty   *Type
+}
+
+func NewAddress(expr Node) *Address {
+	return &Address{
+		expr: expr,
+	}
+}
+
+func (a *Address) AddType() {
+	a.ty = pointerTo(a.expr.Type())
+}
+
+type Dereference struct {
+	Unary
+	expr Node
+	ty   *Type
+}
+
+func NewDereference(expr Node) *Dereference {
+	return &Dereference{
+		expr: expr,
+	}
+}
+
+func (d *Dereference) AddType() {
+	if d.expr.Type().kind != TY_PTR {
+		errorToken(nil, "invalid pointer dereference")
+	} else {
+		d.ty = d.expr.Type().base
+	}
+}
+
 type Return struct {
 	Unary
 	expr Node
@@ -243,6 +323,10 @@ func (f *For) AddType() {
 	f.block.AddType()
 }
 
+func (f *For) Type() *Type {
+	return nil
+}
+
 type Block struct {
 	body []Node
 }
@@ -257,6 +341,10 @@ func (b *Block) AddType() {
 	for i := range b.body {
 		b.body[i].AddType()
 	}
+}
+
+func (b *Block) Type() *Type {
+	return nil
 }
 
 type FuncCall struct {
@@ -279,6 +367,10 @@ func (f *FuncCall) AddType() {
 	f.ty = intType
 }
 
+func (f *FuncCall) Type() *Type {
+	return f.ty
+}
+
 type ExpressionStatement struct {
 	statement Node
 }
@@ -290,6 +382,10 @@ func NewExpressionStatement(expr Node) *ExpressionStatement {
 }
 
 func (e *ExpressionStatement) AddType() {}
+
+func (e *ExpressionStatement) Type() *Type {
+	return intType
+}
 
 type Variable struct {
 	name   string

@@ -20,6 +20,10 @@ func (v *VarNode) genAddr() {
 	fmt.Printf("  push rax\n")
 }
 
+func (n *Dereference) genAddr() {
+	n.expr.Gen()
+}
+
 func load() {
 	fmt.Printf("  pop rax\n")
 	fmt.Printf("  mov rax, [rax]\n")
@@ -51,6 +55,20 @@ func (a *Assign) Gen() {
 	a.lhs.genAddr()
 	a.rhs.Gen()
 	store()
+}
+
+func (a *Address) Gen() {
+	switch v := a.expr.(type) {
+	case *VarNode:
+		v.genAddr()
+	case *Dereference:
+		v.genAddr()
+	}
+}
+
+func (d *Dereference) Gen() {
+	d.expr.Gen()
+	load()
 }
 
 func (i *If) Gen() {
