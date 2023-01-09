@@ -42,29 +42,28 @@ func TestCompile(t *testing.T) {
 		{3, "int main() { int x[2]; int *y=&x; *y=3; return *x; }"},
 	}
 
-	asmFile := "tmp.s"
 	exeFile := "tmp"
 
 	for _, v := range data {
-		old := os.Stdout
+		r, w, _ := os.Pipe()
 
-		f, err := os.Create(asmFile)
-		if err != nil {
-			t.Fatal("Failed to create file")
-		}
-		os.Stdout = f
+		backup := os.Stdout
+		os.Stdout = w
+
+		args := []string{"-x", "assembler", "-", "-static", "-o", exeFile}
+		cmd := exec.Command("gcc", args...)
 
 		compile(v.input)
+		w.Close()
 
-		f.Close()
+		cmd.Stdin = r
 
-		os.Stdout = old
-
-		args := []string{"-static", "-o", exeFile, asmFile}
-		cmd := exec.Command("gcc", args...)
 		if err := cmd.Run(); err != nil {
-			t.Errorf("Failed to build program")
+			b, _ := cmd.CombinedOutput()
+			t.Fatalf("Failed to build program: %v", string(b))
 		}
+		r.Close()
+		os.Stdout = backup
 
 		cmd = exec.Command("./tmp")
 		cmd.Run()
@@ -74,7 +73,6 @@ func TestCompile(t *testing.T) {
 			t.Errorf("Failed to run program")
 		}
 
-		os.Remove(asmFile)
 		os.Remove(exeFile)
 	}
 }
