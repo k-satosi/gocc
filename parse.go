@@ -287,8 +287,19 @@ func (p *Parser) unary() Node {
 	} else if p.consume("*") {
 		return NewDereference(p.unary())
 	} else {
-		return p.primary()
+		return p.postFix()
 	}
+}
+
+func (p *Parser) postFix() Node {
+	node := p.primary()
+
+	for p.consume("[") {
+		exp := NewAdd(node, p.expr())
+		p.expect("]")
+		node = NewDereference(exp)
+	}
+	return node
 }
 
 func (p *Parser) funcArgs() []Node {
