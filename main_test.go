@@ -40,6 +40,7 @@ func TestCompile(t *testing.T) {
 		{8, "int main() { int x=3; int y=5; return foo(&x, y); } int foo(int *x, int y) { return *x + y; }"},
 
 		{3, "int main() { int x[2]; int *y=&x; *y=3; return *x; }"},
+		{1, "int main() { int x[2][3]; int *y=x; *(y+1)=1; return *(*x+1); }"},
 	}
 
 	exeFile := "tmp"
@@ -59,8 +60,7 @@ func TestCompile(t *testing.T) {
 		cmd.Stdin = r
 
 		if err := cmd.Run(); err != nil {
-			b, _ := cmd.CombinedOutput()
-			t.Fatalf("Failed to build program: %v", string(b))
+			t.Fatalf("Failed to build program: %v", err)
 		}
 		r.Close()
 		os.Stdout = backup

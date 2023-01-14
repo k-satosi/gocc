@@ -14,7 +14,7 @@ func (p *Parser) NewLVar(name string, ty Type) *Variable {
 		name: name,
 		ty:   ty,
 	}
-	p.locals = append(p.locals, v)
+	p.locals = append([]*Variable{v}, p.locals...)
 	return v
 }
 
@@ -53,6 +53,7 @@ func (p *Parser) readTypeSuffix(base Type) Type {
 	}
 	size := p.expectNumber()
 	p.expect(("]"))
+	base = p.readTypeSuffix(base)
 	return NewArrayType(base, size)
 }
 
@@ -96,6 +97,12 @@ func (p *Parser) function() *Function {
 	fn.node = l
 	fn.locals = p.locals
 	return fn
+}
+
+func (f *Function) AddType() {
+	for i := range f.node {
+		f.node[i].AddType()
+	}
 }
 
 func (p *Parser) declaration() Node {

@@ -185,12 +185,24 @@ func (b *Binary) Gen() {
 
 func (a *Add) Gen() {
 	a.Binary.Gen()
+	switch t := a.Binary.ty.(type) {
+	case *PointerType:
+		fmt.Printf("  imul rdi, %d\n", t.base.size())
+	case *ArrayType:
+		fmt.Printf("  imul rdi, %d\n", t.base.size())
+	}
 	fmt.Printf("  add rax, rdi\n")
 	fmt.Printf("  push rax\n")
 }
 
 func (s *Sub) Gen() {
 	s.Binary.Gen()
+	switch t := s.ty.(type) {
+	case *PointerType:
+		fmt.Printf("  imul rdi, %d\n", t.size())
+	case *ArrayType:
+		fmt.Printf("  imul rdi, %d\n", t.size())
+	}
 	fmt.Printf("  sub rax, rdi\n")
 	fmt.Printf("  push rax\n")
 }

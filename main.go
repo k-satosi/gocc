@@ -18,6 +18,9 @@ func compile(input string) {
 	token := Tokenize(input)
 	parser := NewParser(token)
 	prog := parser.Program()
+	for i := range prog {
+		prog[i].AddType()
+	}
 
 	for i := range prog {
 		offset := 0

@@ -35,7 +35,11 @@ func (b *Binary) Rhs() Node {
 func (b *Binary) AddType() {
 	b.lhs.AddType()
 	b.rhs.AddType()
-	b.ty = intType
+	b.ty = b.lhs.Type()
+}
+
+func (b Binary) Type() Type {
+	return b.ty
 }
 
 // func (b *Binary) ApplyOperation() {}
@@ -53,6 +57,10 @@ func NewAdd(lhs Node, rhs Node) *Add {
 	}
 }
 
+func (a *Add) AddType() {
+	a.Binary.AddType()
+}
+
 type PointerAdd struct {
 	*Binary
 }
@@ -64,6 +72,10 @@ func NewPointerAdd(lhs Node, rhs Node) *PointerAdd {
 			rhs: rhs,
 		},
 	}
+}
+
+func (p *PointerAdd) AddType() {
+	p.Binary.AddType()
 }
 
 type Sub struct {
@@ -197,6 +209,8 @@ func NewAssign(lhs Node, rhs Node) *Assign {
 }
 
 func (a *Assign) AddType() {
+	a.lhs.AddType()
+	a.rhs.AddType()
 	switch v := a.lhs.(type) {
 	case *VarNode:
 		a.ty = v.ty
@@ -242,6 +256,7 @@ func NewDereference(expr Node) *Dereference {
 }
 
 func (d *Dereference) AddType() {
+	d.expr.AddType()
 	switch v := d.expr.Type().(type) {
 	case *ArrayType:
 		d.ty = v.base
@@ -250,6 +265,10 @@ func (d *Dereference) AddType() {
 	default:
 		errorAt("", "invalid pointer dereference")
 	}
+}
+
+func (d *Dereference) Type() Type {
+	return d.ty
 }
 
 type Return struct {
@@ -263,7 +282,13 @@ func NewReturn(expr Node) *Return {
 	}
 }
 
-func (r *Return) AddType() {}
+func (r *Return) AddType() {
+	r.expr.AddType()
+}
+
+func (r *Return) Type() Type {
+	return r.expr.Type()
+}
 
 type If struct {
 	Node
@@ -393,7 +418,9 @@ func NewExpressionStatement(expr Node) *ExpressionStatement {
 	}
 }
 
-func (e *ExpressionStatement) AddType() {}
+func (e *ExpressionStatement) AddType() {
+	e.statement.AddType()
+}
 
 func (e *ExpressionStatement) Type() Type {
 	return intType
@@ -421,6 +448,10 @@ func (v *VarNode) AddType() {
 	v.ty = v.variable.ty
 }
 
+func (v *VarNode) Type() Type {
+	return v.ty
+}
+
 type Number struct {
 	Node
 	val int
@@ -435,6 +466,10 @@ func NewNumber(val int) *Number {
 
 func (n *Number) AddType() {
 	n.ty = intType
+}
+
+func (n *Number) Type() Type {
+	return n.ty
 }
 
 type Null struct {
