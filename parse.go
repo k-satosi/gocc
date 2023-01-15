@@ -18,9 +18,23 @@ func (p *Parser) NewLVar(name string, ty Type) *Variable {
 	return v
 }
 
+func (p *Parser) pushVar(name string, ty Type, isLocal bool) *Variable {
+	v := &Variable{
+		name: name,
+		ty:   ty,
+	}
+	if isLocal {
+		p.locals = append([]*Variable{v}, p.locals...)
+	} else {
+		p.globals = append([]*Variable{v}, p.globals...)
+	}
+	return v
+}
+
 type Parser struct {
-	token  *Token
-	locals []*Variable
+	token   *Token
+	locals  []*Variable
+	globals []*Variable
 }
 
 func NewParser(token *Token) *Parser {
@@ -29,11 +43,23 @@ func NewParser(token *Token) *Parser {
 	}
 }
 
+func (p *Parser) isFunction() bool {
+	tok := p.token
+	p.baseType()
+	isFunc := p.consumeIdent() != nil && p.consume("(")
+	p.token = tok
+	return isFunc
+}
+
 func (p *Parser) Program() []*Function {
 	funcs := []*Function{}
 
 	for !p.token.AtEOF() {
-		funcs = append(funcs, p.function())
+		if p.isFunction() {
+			funcs = append(funcs, p.function())
+		} else {
+			p.globalVar()
+		}
 	}
 	return funcs
 }
@@ -103,6 +129,14 @@ func (f *Function) AddType() {
 	for i := range f.node {
 		f.node[i].AddType()
 	}
+}
+
+func (p *Parser) globalVar() {
+	ty := p.baseType()
+	name := p.expectIdent()
+	ty = p.readTypeSuffix(ty)
+	p.expect(";")
+	p.pushVar(name, ty, false)
 }
 
 func (p *Parser) declaration() Node {
@@ -346,6 +380,11 @@ func (p *Parser) findVariable(token *Token) *Variable {
 	for i := range p.locals {
 		if token.str == p.locals[i].name {
 			return p.locals[i]
+		}
+	}
+	for i := range p.globals {
+		if token.str == p.globals[i].name {
+			return p.globals[i]
 		}
 	}
 	return nil
