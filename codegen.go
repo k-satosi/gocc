@@ -53,6 +53,10 @@ func (v *VarNode) Gen() {
 	}
 }
 
+func (s *Sizeof) Gen() {
+	fmt.Printf("  push %d\n", s.v.Type().size())
+}
+
 func (a *Assign) Gen() {
 	switch v := a.lhs.(type) {
 	case *VarNode:

@@ -43,6 +43,11 @@ func TestCompile(t *testing.T) {
 		{1, "int main() { int x[2][3]; int *y=x; *(y+1)=1; return *(*x+1); }"},
 
 		{1, "int main() { int x[2][3]; int *y=x; y[1]=1; return x[0][1]; }"},
+
+		{8, "int main() { int x; return sizeof(x); }"},
+		{8, "int main() { int x; return sizeof x; }"},
+		{8, "int main() { int *x; return sizeof(x); }"},
+		{32, "int main() { int x[4]; return sizeof(x); }"},
 	}
 
 	exeFile := "tmp"

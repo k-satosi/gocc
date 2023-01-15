@@ -452,6 +452,24 @@ func (v *VarNode) Type() Type {
 	return v.ty
 }
 
+type Sizeof struct {
+	v Node
+}
+
+func NewSizeof(v Node) *Sizeof {
+	return &Sizeof{
+		v: v,
+	}
+}
+
+func (s *Sizeof) AddType() {
+	s.v.AddType()
+}
+
+func (s *Sizeof) Type() Type {
+	return intType
+}
+
 type Number struct {
 	Node
 	val int

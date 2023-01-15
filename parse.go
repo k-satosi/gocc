@@ -322,6 +322,10 @@ func (p *Parser) primary() Node {
 		return node
 	}
 
+	if p.consume("sizeof") {
+		return NewSizeof(p.unary())
+	}
+
 	if token := p.consumeIdent(); token != nil {
 		if p.consume("(") {
 			name := token.str
