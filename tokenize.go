@@ -13,15 +13,17 @@ const (
 	TK_RESERVED TokenKind = iota
 	TK_IDENT
 	TK_NUM
+	TK_STRING
 	TK_EOF
 )
 
 type Token struct {
-	next *Token
-	kind TokenKind
-	val  int
-	str  string
-	len  int
+	next     *Token
+	kind     TokenKind
+	val      int
+	str      string
+	len      int
+	contents string
 }
 
 func errorAt(loc string, format string, a ...string) {
@@ -118,7 +120,10 @@ func (t *Token) AtEOF() bool {
 }
 
 func startsWithReserved(s string) (string, bool) {
-	keywords := []string{"return", "if", "else", "while", "for", "int", "sizeof"}
+	keywords := []string{
+		"return", "if", "else", "while", "for",
+		"int", "char", "sizeof",
+	}
 	for _, v := range keywords {
 		if strings.HasPrefix(s, v) {
 			return v, true
@@ -159,6 +164,19 @@ func Tokenize(input string) *Token {
 		}
 		if isPunct(rune(input[i])) {
 			cur = NewToken(TK_RESERVED, cur, input[i:i+1], 1)
+			i++
+			continue
+		}
+		if rune(input[i]) == '"' {
+			i++
+			pos := i
+			for ; i < len(input) && rune(input[i]) != '"'; i++ {
+			}
+			if i == len(input) {
+				errorAt("", "unclosed string lieteral")
+			}
+			cur = NewToken(TK_STRING, cur, input[pos:i], i-pos)
+			cur.contents = input[pos:i]
 			i++
 			continue
 		}

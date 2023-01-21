@@ -427,9 +427,17 @@ func (e *ExpressionStatement) Type() Type {
 }
 
 type Variable struct {
-	name   string
-	ty     Type
+	// Variable name
+	name string
+	// Type
+	ty Type
+	// Offset from RBP (for local)
 	offset int
+
+	isLocal bool
+
+	// (for global)
+	contents string
 }
 
 type VarNode struct {

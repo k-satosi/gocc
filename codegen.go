@@ -16,8 +16,12 @@ var argreg = []string{
 var funcname string
 
 func (v *VarNode) genAddr() {
-	fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
-	fmt.Printf("  push rax\n")
+	if v.variable.isLocal {
+		fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
+		fmt.Printf("  push rax\n")
+	} else {
+		fmt.Printf("  push offset %s\n", v.variable.name)
+	}
 }
 
 func (n *Dereference) genAddr() {
@@ -258,10 +262,32 @@ func (l *LessEqual) Gen() {
 
 func (n *Null) Gen() {}
 
-func Codegen(prog []*Function) {
-	fmt.Printf(".intel_syntax noprefix\n")
+type Program struct {
+	globals []*Variable
+	funcs   []*Function
+}
 
-	for _, fn := range prog {
+func (p *Program) emitData() {
+	fmt.Printf(".data\n")
+
+	for _, v := range p.globals {
+		fmt.Printf("%s:\n", v.name)
+
+		if len(v.contents) == 0 {
+			fmt.Printf("  .zero %d\n", v.ty.size())
+			continue
+		}
+
+		for _, r := range v.contents {
+			fmt.Printf("  .byte %d\n", r)
+		}
+	}
+}
+
+func (p *Program) emitText() {
+	fmt.Printf(".text\n")
+
+	for _, fn := range p.funcs {
 		fmt.Printf(".global %s\n", fn.name)
 		fmt.Printf("%s:\n", fn.name)
 		funcname = fn.name
@@ -285,4 +311,11 @@ func Codegen(prog []*Function) {
 		fmt.Printf("  pop rbp\n")
 		fmt.Printf("  ret\n")
 	}
+}
+
+func (p *Program) Codegen() {
+	fmt.Printf(".intel_syntax noprefix\n")
+
+	p.emitData()
+	p.emitText()
 }

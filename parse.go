@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 type Function struct {
 	name   string
 	params []*Variable
@@ -11,8 +15,9 @@ type Function struct {
 
 func (p *Parser) NewLVar(name string, ty Type) *Variable {
 	v := &Variable{
-		name: name,
-		ty:   ty,
+		name:    name,
+		ty:      ty,
+		isLocal: true,
 	}
 	p.locals = append([]*Variable{v}, p.locals...)
 	return v
@@ -20,8 +25,9 @@ func (p *Parser) NewLVar(name string, ty Type) *Variable {
 
 func (p *Parser) pushVar(name string, ty Type, isLocal bool) *Variable {
 	v := &Variable{
-		name: name,
-		ty:   ty,
+		name:    name,
+		ty:      ty,
+		isLocal: isLocal,
 	}
 	if isLocal {
 		p.locals = append([]*Variable{v}, p.locals...)
@@ -29,6 +35,14 @@ func (p *Parser) pushVar(name string, ty Type, isLocal bool) *Variable {
 		p.globals = append([]*Variable{v}, p.globals...)
 	}
 	return v
+}
+
+var labelCount int
+
+func (p *Parser) newLabel() string {
+	label := fmt.Sprintf(".L.data.%d", labelCount)
+	labelCount++
+	return label
 }
 
 type Parser struct {
@@ -51,7 +65,7 @@ func (p *Parser) isFunction() bool {
 	return isFunc
 }
 
-func (p *Parser) Program() []*Function {
+func (p *Parser) Program() *Program {
 	funcs := []*Function{}
 
 	for !p.token.AtEOF() {
@@ -61,12 +75,21 @@ func (p *Parser) Program() []*Function {
 			p.globalVar()
 		}
 	}
-	return funcs
+	prog := &Program{
+		globals: p.globals,
+		funcs:   funcs,
+	}
+	return prog
 }
 
 func (p *Parser) baseType() Type {
-	p.expect("int")
-	ty := intType
+	var ty Type
+	if p.consume("char") {
+		ty = charType
+	} else {
+		p.expect("int")
+		ty = intType
+	}
 	for p.consume("*") {
 		ty = NewPointerType(ty)
 	}
@@ -160,6 +183,10 @@ func (p *Parser) readExprStmt() Node {
 	return NewExpressionStatement(p.expr())
 }
 
+func (p *Parser) isTypeName() bool {
+	return p.peek("char") || p.peek("int")
+}
+
 func (p *Parser) stmt() Node {
 	node := p.stmt2()
 	node.AddType()
@@ -229,7 +256,7 @@ func (p *Parser) stmt2() Node {
 		return node
 	}
 
-	if p.peek("int") {
+	if p.isTypeName() {
 		return p.declaration()
 	}
 
@@ -370,6 +397,16 @@ func (p *Parser) primary() Node {
 		if v == nil {
 			errorToken(token, "undefined variable")
 		}
+		return NewVarNode(v)
+	}
+
+	tok := p.token
+	if tok.kind == TK_STRING {
+		p.token = p.token.next
+
+		ty := NewArrayType(charType, len(tok.contents))
+		v := p.pushVar(p.newLabel(), ty, false)
+		v.contents = tok.contents
 		return NewVarNode(v)
 	}
 

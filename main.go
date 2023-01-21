@@ -18,18 +18,18 @@ func compile(input string) {
 	token := Tokenize(input)
 	parser := NewParser(token)
 	prog := parser.Program()
-	for i := range prog {
-		prog[i].AddType()
+	for i := range prog.funcs {
+		prog.funcs[i].AddType()
 	}
 
-	for i := range prog {
+	for i := range prog.funcs {
 		offset := 0
-		for j := range prog[i].locals {
-			offset += prog[i].locals[j].ty.size()
-			prog[i].locals[j].offset = offset
+		for j := range prog.funcs[i].locals {
+			offset += prog.funcs[i].locals[j].ty.size()
+			prog.funcs[i].locals[j].offset = offset
 		}
-		prog[i].stackSize = offset
+		prog.funcs[i].stackSize = offset
 	}
 
-	Codegen(prog)
+	prog.Codegen()
 }

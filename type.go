@@ -6,6 +6,16 @@ type Type interface {
 	size() int
 }
 
+type CharType struct{}
+
+func NewCharType() *CharType {
+	return &CharType{}
+}
+
+func (c *CharType) size() int {
+	return 1
+}
+
 type IntType struct{}
 
 func NewIntType() *IntType {
@@ -31,6 +41,7 @@ func (p *PointerType) size() int {
 	return 8
 }
 
+var charType Type = NewCharType()
 var intType Type = NewIntType()
 
 type ArrayType struct {
