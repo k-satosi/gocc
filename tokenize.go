@@ -140,6 +140,58 @@ func startsWithReserved(s string) (string, bool) {
 	return "", false
 }
 
+func getEscapeChar(r rune) rune {
+	switch r {
+	case 'a':
+		return '\a'
+	case 'b':
+		return '\b'
+	case 't':
+		return '\t'
+	case 'n':
+		return '\n'
+	case 'v':
+		return '\v'
+	case 'f':
+		return '\f'
+	case 'r':
+		return '\r'
+	case 'e':
+		return 27
+	case '0':
+		return 0
+	default:
+		return r
+	}
+}
+
+func readStringLiteral(cur *Token, start string) *Token {
+	str := ""
+	i := 1
+	for {
+		if i == len(start) {
+			errorAt("", "unclosed string lieteral")
+		}
+
+		if start[i] == '"' {
+			break
+		}
+
+		if start[i] == '\\' {
+			i++
+			str += string(getEscapeChar(rune(start[i])))
+			i++
+		} else {
+			str += string(start[i])
+			i++
+		}
+	}
+
+	tok := NewToken(TK_STRING, cur, start[:i], i+1)
+	tok.contents = str
+	return tok
+}
+
 func Tokenize(input string) *Token {
 	head := &Token{}
 	cur := head
@@ -168,16 +220,8 @@ func Tokenize(input string) *Token {
 			continue
 		}
 		if rune(input[i]) == '"' {
-			i++
-			pos := i
-			for ; i < len(input) && rune(input[i]) != '"'; i++ {
-			}
-			if i == len(input) {
-				errorAt("", "unclosed string lieteral")
-			}
-			cur = NewToken(TK_STRING, cur, input[pos:i], i-pos)
-			cur.contents = input[pos:i]
-			i++
+			cur = readStringLiteral(cur, input[i:])
+			i += cur.len
 			continue
 		}
 		if isDigit(rune(input[i])) {
