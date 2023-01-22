@@ -10,7 +10,12 @@ func main() {
 		fmt.Printf("usage: %v \"<program>\"\n", os.Args[0])
 		return
 	}
-	input := os.Args[1]
+	bytes, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	input := string(bytes)
 	compile(input)
 }
 
