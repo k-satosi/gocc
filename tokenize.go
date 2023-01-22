@@ -201,6 +201,22 @@ func Tokenize(input string) *Token {
 			i++
 			continue
 		}
+		if strings.HasPrefix(input[i:], "//") {
+			i += 2
+			for input[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(input[i:], "/*") {
+			i += 2
+			index := strings.Index(input[i:], "*/")
+			if index == -1 {
+				errorAt("", "unclosed block comment")
+			}
+			i += index + 2
+			continue
+		}
 		if keyword, ok := startsWithReserved(input[i:]); ok {
 			cur = NewToken(TK_RESERVED, cur, keyword, len(keyword))
 			i += len(keyword)
