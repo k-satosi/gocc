@@ -58,6 +58,7 @@ func TestCompile(t *testing.T) {
 
 		{98, "int main() { return \"abc\"[1]; }"},
 		{9, "int main() { return \"\\t\"[0]; }"},
+		{2, "int main() { int x=2; { int x=3; } return x; }"},
 	}
 
 	exeFile := "tmp"

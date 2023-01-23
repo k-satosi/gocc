@@ -13,16 +13,6 @@ type Function struct {
 	stackSize int
 }
 
-func (p *Parser) NewLVar(name string, ty Type) *Variable {
-	v := &Variable{
-		name:    name,
-		ty:      ty,
-		isLocal: true,
-	}
-	p.locals = append([]*Variable{v}, p.locals...)
-	return v
-}
-
 func (p *Parser) pushVar(name string, ty Type, isLocal bool) *Variable {
 	v := &Variable{
 		name:    name,
@@ -34,6 +24,8 @@ func (p *Parser) pushVar(name string, ty Type, isLocal bool) *Variable {
 	} else {
 		p.globals = append([]*Variable{v}, p.globals...)
 	}
+
+	p.scope = append([]*Variable{v}, p.scope...)
 	return v
 }
 
@@ -49,6 +41,7 @@ type Parser struct {
 	token   *Token
 	locals  []*Variable
 	globals []*Variable
+	scope   []*Variable
 }
 
 func NewParser(token *Token) *Parser {
@@ -110,7 +103,7 @@ func (p *Parser) readFuncParam() *Variable {
 	ty := p.baseType()
 	name := p.expectIdent()
 	ty = p.readTypeSuffix(ty)
-	return p.NewLVar(name, ty)
+	return p.pushVar(name, ty, true)
 }
 
 func (p *Parser) readFuncParams() []*Variable {
@@ -166,7 +159,7 @@ func (p *Parser) declaration() Node {
 	ty := p.baseType()
 	ident := p.expectIdent()
 	ty = p.readTypeSuffix(ty)
-	v := p.NewLVar(ident, ty)
+	v := p.pushVar(ident, ty, true)
 	if p.consume(";") {
 		return NewNull()
 	}
@@ -247,9 +240,11 @@ func (p *Parser) stmt2() Node {
 	if p.consume("{") {
 		l := []Node{}
 
+		sc := p.scope
 		for !p.consume("}") {
 			l = append(l, p.stmt())
 		}
+		p.scope = sc
 
 		node := NewBlock(l)
 
@@ -414,14 +409,9 @@ func (p *Parser) primary() Node {
 }
 
 func (p *Parser) findVariable(token *Token) *Variable {
-	for i := range p.locals {
-		if token.str == p.locals[i].name {
-			return p.locals[i]
-		}
-	}
-	for i := range p.globals {
-		if token.str == p.globals[i].name {
-			return p.globals[i]
+	for i := range p.scope {
+		if token.str == p.scope[i].name {
+			return p.scope[i]
 		}
 	}
 	return nil
