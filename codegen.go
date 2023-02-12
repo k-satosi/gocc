@@ -24,6 +24,15 @@ func (v *VarNode) genAddr() {
 	}
 }
 
+func (m *Member) genAddr() {
+	if v, ok := m.expr.(*VarNode); ok {
+		v.genAddr()
+	}
+	fmt.Printf("  pop rax\n")
+	fmt.Printf("  add rax, %d\n", m.offset)
+	fmt.Printf("  push rax\n")
+}
+
 func (n *Dereference) genAddr() {
 	n.expr.Gen()
 }
@@ -57,6 +66,13 @@ func (v *VarNode) Gen() {
 	}
 }
 
+func (m *Member) Gen() {
+	m.genAddr()
+	if _, ok := m.ty.(*ArrayType); !ok {
+		load()
+	}
+}
+
 func (s *Sizeof) Gen() {
 	fmt.Printf("  push %d\n", s.v.Type().size())
 }
@@ -66,6 +82,8 @@ func (a *Assign) Gen() {
 	case *VarNode:
 		v.genAddr()
 	case *Dereference:
+		v.genAddr()
+	case *Member:
 		v.genAddr()
 	}
 	a.rhs.Gen()
@@ -77,6 +95,8 @@ func (a *Address) Gen() {
 	case *VarNode:
 		v.genAddr()
 	case *Dereference:
+		v.genAddr()
+	case *Member:
 		v.genAddr()
 	}
 }

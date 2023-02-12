@@ -79,9 +79,10 @@ func (p *Parser) baseType() Type {
 	var ty Type
 	if p.consume("char") {
 		ty = charType
-	} else {
-		p.expect("int")
+	} else if p.consume("int") {
 		ty = intType
+	} else {
+		ty = p.structDecl()
 	}
 	for p.consume("*") {
 		ty = NewPointerType(ty)
@@ -97,6 +98,39 @@ func (p *Parser) readTypeSuffix(base Type) Type {
 	p.expect(("]"))
 	base = p.readTypeSuffix(base)
 	return NewArrayType(base, size)
+}
+
+func (p *Parser) structDecl() Type {
+	p.expect("struct")
+	p.expect("{")
+
+	members := []*Member{}
+
+	for !p.consume("}") {
+		members = append(members, p.structMember())
+		//members = append([]*Member{p.structMember()}, members...)
+	}
+
+	ty := NewStructType(members)
+	offset := 0
+	for i := range ty.members {
+		ty.members[i].offset = offset
+		offset += ty.members[i].ty.size()
+	}
+
+	return ty
+}
+
+func (p *Parser) structMember() *Member {
+	ty := p.baseType()
+	name := p.expectIdent()
+	m := &Member{
+		ty:   ty,
+		name: name,
+	}
+	m.ty = p.readTypeSuffix(m.ty)
+	p.expect(";")
+	return m
 }
 
 func (p *Parser) readFuncParam() *Variable {
@@ -177,7 +211,7 @@ func (p *Parser) readExprStmt() Node {
 }
 
 func (p *Parser) isTypeName() bool {
-	return p.peek("char") || p.peek("int")
+	return p.peek("char") || p.peek("int") || p.peek("struct")
 }
 
 func (p *Parser) stmt() Node {
@@ -350,12 +384,21 @@ func (p *Parser) unary() Node {
 func (p *Parser) postFix() Node {
 	node := p.primary()
 
-	for p.consume("[") {
-		exp := NewAdd(node, p.expr())
-		p.expect("]")
-		node = NewDereference(exp)
+	for {
+		if p.consume("[") {
+			exp := NewAdd(node, p.expr())
+			p.expect("]")
+			node = NewDereference(exp)
+			continue
+		}
+
+		if p.consume(".") {
+			name := p.expectIdent()
+			node = NewMember(node, name)
+			continue
+		}
+		return node
 	}
-	return node
 }
 
 func (p *Parser) funcArgs() []Node {

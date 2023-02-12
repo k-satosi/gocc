@@ -223,6 +223,34 @@ func (a *Assign) Type() Type {
 	return a.ty
 }
 
+type Member struct {
+	expr   Node
+	name   string
+	ty     Type
+	offset int
+}
+
+func NewMember(expr Node, name string) *Member {
+	return &Member{
+		expr: expr,
+		name: name,
+	}
+}
+
+func (m *Member) AddType() {
+	m.expr.AddType()
+	s := m.expr.Type().(*Struct)
+	mem := s.FindMember(m.name)
+	m.name = mem.name
+	m.offset = mem.offset
+	m.ty = mem.ty
+	// m.ty = m.expr.Type()
+}
+
+func (m *Member) Type() Type {
+	return m.ty
+}
+
 type Address struct {
 	Unary
 	expr Node

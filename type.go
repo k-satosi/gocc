@@ -60,3 +60,31 @@ func NewArrayType(base Type, len int) *ArrayType {
 func (a *ArrayType) size() int {
 	return a.base.size() * a.len
 }
+
+type Struct struct {
+	Type
+	members []*Member
+}
+
+func NewStructType(members []*Member) *Struct {
+	return &Struct{
+		members: members,
+	}
+}
+
+func (s *Struct) size() int {
+	size := 0
+	for i := range s.members {
+		size += s.members[i].ty.size()
+	}
+	return size
+}
+
+func (s *Struct) FindMember(name string) *Member {
+	for i := range s.members {
+		if name == s.members[i].name {
+			return s.members[i]
+		}
+	}
+	return nil
+}
