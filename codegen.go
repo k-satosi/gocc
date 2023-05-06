@@ -15,7 +15,7 @@ var argreg = []string{
 }
 var funcname string
 
-func (v *VarNode) genAddr() {
+func (v *VarNode) GenAddr() {
 	if v.variable.isLocal {
 		fmt.Printf("  lea rax, [rbp-%d]\n", v.variable.offset)
 		fmt.Printf("  push rax\n")
@@ -24,16 +24,16 @@ func (v *VarNode) genAddr() {
 	}
 }
 
-func (m *Member) genAddr() {
+func (m *Member) GenAddr() {
 	if v, ok := m.expr.(*VarNode); ok {
-		v.genAddr()
+		v.GenAddr()
 	}
 	fmt.Printf("  pop rax\n")
 	fmt.Printf("  add rax, %d\n", m.offset)
 	fmt.Printf("  push rax\n")
 }
 
-func (n *Dereference) genAddr() {
+func (n *Dereference) GenAddr() {
 	n.expr.Gen()
 }
 
@@ -60,14 +60,14 @@ func (e *ExpressionStatement) Gen() {
 }
 
 func (v *VarNode) Gen() {
-	v.genAddr()
+	v.GenAddr()
 	if _, ok := v.variable.ty.(*ArrayType); !ok {
 		load()
 	}
 }
 
 func (m *Member) Gen() {
-	m.genAddr()
+	m.GenAddr()
 	if _, ok := m.ty.(*ArrayType); !ok {
 		load()
 	}
@@ -78,27 +78,13 @@ func (s *Sizeof) Gen() {
 }
 
 func (a *Assign) Gen() {
-	switch v := a.lhs.(type) {
-	case *VarNode:
-		v.genAddr()
-	case *Dereference:
-		v.genAddr()
-	case *Member:
-		v.genAddr()
-	}
+	a.lhs.GenAddr()
 	a.rhs.Gen()
 	store()
 }
 
 func (a *Address) Gen() {
-	switch v := a.expr.(type) {
-	case *VarNode:
-		v.genAddr()
-	case *Dereference:
-		v.genAddr()
-	case *Member:
-		v.genAddr()
-	}
+	a.expr.GenAddr()
 }
 
 func (d *Dereference) Gen() {

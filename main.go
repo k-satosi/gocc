@@ -7,7 +7,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Printf("usage: %v \"<program>\"\n", os.Args[0])
+		fmt.Printf("%v: invalid number of arguments", os.Args[0])
 		return
 	}
 	bytes, err := os.ReadFile(os.Args[1])

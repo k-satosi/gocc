@@ -6,6 +6,11 @@ type Node interface {
 	Type() Type
 }
 
+type AddressGenerator interface {
+	Node
+	GenAddr()
+}
+
 type Unary interface {
 	Node
 }
@@ -196,12 +201,12 @@ func NewLessEqual(lhs Node, rhs Node) *LessEqual {
 }
 
 type Assign struct {
-	lhs Node
+	lhs AddressGenerator
 	rhs Node
 	ty  Type
 }
 
-func NewAssign(lhs Node, rhs Node) *Assign {
+func NewAssign(lhs AddressGenerator, rhs Node) *Assign {
 	return &Assign{
 		lhs: lhs,
 		rhs: rhs,
@@ -224,6 +229,8 @@ func (a *Assign) Type() Type {
 }
 
 type Member struct {
+	Node
+	AddressGenerator
 	expr   Node
 	name   string
 	ty     Type
@@ -253,11 +260,11 @@ func (m *Member) Type() Type {
 
 type Address struct {
 	Unary
-	expr Node
+	expr AddressGenerator
 	ty   Type
 }
 
-func NewAddress(expr Node) *Address {
+func NewAddress(expr AddressGenerator) *Address {
 	return &Address{
 		expr: expr,
 	}
@@ -272,6 +279,7 @@ func (a *Address) AddType() {
 }
 
 type Dereference struct {
+	AddressGenerator
 	Unary
 	expr Node
 	ty   Type
@@ -470,6 +478,7 @@ type Variable struct {
 
 type VarNode struct {
 	Node
+	AddressGenerator
 	variable *Variable
 	ty       Type
 }

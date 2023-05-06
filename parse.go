@@ -301,7 +301,7 @@ func (p *Parser) expr() Node {
 func (p *Parser) assign() Node {
 	node := p.equality()
 	if p.consume("=") {
-		node = NewAssign(node, p.assign())
+		node = NewAssign(node.(AddressGenerator), p.assign())
 	}
 
 	return node
@@ -373,7 +373,8 @@ func (p *Parser) unary() Node {
 	} else if p.consume("-") {
 		return NewSub(NewNumber(0), p.unary())
 	} else if p.consume("&") {
-		return NewAddress(p.unary())
+		tmp := p.unary()
+		return NewAddress(tmp.(AddressGenerator))
 	} else if p.consume("*") {
 		return NewDereference(p.unary())
 	} else {
